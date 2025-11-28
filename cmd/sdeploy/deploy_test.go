@@ -102,7 +102,7 @@ func TestDeployGitPull(t *testing.T) {
 
 	// This will fail git pull but that's expected in test env
 	result := deployer.Deploy(context.Background(), project, "WEBHOOK")
-	
+
 	// Even if git pull fails, we should log the attempt
 	logOutput := buf.String()
 	if !strings.Contains(logOutput, "git") || !strings.Contains(logOutput, "pull") {
@@ -301,4 +301,3 @@ func TestDeployWorkingDirectory(t *testing.T) {
 		t.Errorf("Expected working directory %s, got: %s", tmpDir, string(content))
 	}
 }
-

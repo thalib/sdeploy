@@ -265,4 +265,3 @@ func TestProjectConfigOptionalFields(t *testing.T) {
 		t.Error("Expected GitUpdate to be true")
 	}
 }
-

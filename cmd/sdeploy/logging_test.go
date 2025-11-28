@@ -184,4 +184,3 @@ func TestLoggerEmptyProject(t *testing.T) {
 		}
 	}
 }
-

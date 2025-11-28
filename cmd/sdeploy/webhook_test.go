@@ -374,4 +374,3 @@ func createSignedRequest(t *testing.T, method, url, secret string, body interfac
 
 	return req
 }
-

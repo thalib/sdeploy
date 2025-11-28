@@ -223,4 +223,3 @@ func TestEmailErrorHandling(t *testing.T) {
 	_ = notifier.SendNotification(project, result, "WEBHOOK")
 	_ = logBuf
 }
-

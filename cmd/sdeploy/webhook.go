@@ -188,4 +188,3 @@ func extractBranchFromPayload(payload []byte) string {
 func StartServer(addr string, handler http.Handler) error {
 	return http.ListenAndServe(addr, handler)
 }
-

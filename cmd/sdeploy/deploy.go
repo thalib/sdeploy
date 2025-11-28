@@ -215,4 +215,3 @@ func (d *Deployer) sendNotification(project *ProjectConfig, result *DeployResult
 		}
 	}
 }
-

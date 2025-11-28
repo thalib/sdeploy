@@ -159,4 +159,3 @@ func (n *EmailNotifier) sendWithSTARTTLS(addr string, email *Email, message stri
 
 	return smtp.SendMail(addr, auth, n.config.EmailSender, email.To, []byte(message))
 }
-

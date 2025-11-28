@@ -119,4 +119,3 @@ func FindConfigFile(explicitPath string) string {
 
 	return ""
 }
-

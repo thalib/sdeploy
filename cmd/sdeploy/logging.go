@@ -93,4 +93,3 @@ func (l *Logger) Warnf(project, format string, args ...interface{}) {
 func (l *Logger) Errorf(project, format string, args ...interface{}) {
 	l.Error(project, fmt.Sprintf(format, args...))
 }
-

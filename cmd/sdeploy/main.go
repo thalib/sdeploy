@@ -117,4 +117,3 @@ func printUsage() {
 	fmt.Println("  sdeploy -d           # Run as daemon")
 	fmt.Println("  sdeploy -c /path/to/config.json -d")
 }
-

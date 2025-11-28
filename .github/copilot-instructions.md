@@ -19,3 +19,30 @@ For all operations, consult these sections in `SPEC.md`:
 - Keep all code, configuration, and documentation lean, simple, and clean.
 - Avoid unnecessary complexity and duplication.
 - **DO NOT** include commands unless very necessary for context.
+- **Test-Driven Development (TDD) is mandatory:**
+	- Every feature, bugfix, or refactor must be accompanied by one or more unit tests before implementation.
+	- All major logic modules require corresponding `*_test.go` files.
+	- No code is considered complete or production-ready without passing tests, as enforced in `SPEC.md`.
+
+# PRD Template
+
+- The `prd` directory contains product requirement documents.
+- PRD file naming convention: `prd/001-feature-name.md`
+- For all product requirement documents, use the following template:
+
+```markdown
+## Overview
+- What is this and why
+- Overview
+- Overview
+
+## Requirements
+- What must it do?
+- Requirements
+- Requirements
+
+## Acceptance
+- How do we know it’s done?
+- Acceptance
+- Acceptance
+```

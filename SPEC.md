@@ -1,6 +1,26 @@
+
 # 📦 SDeploy: Simple Webhook Deployment Daemon
 
 This document outlines the features and requirements for SDeploy, a lightweight, Go-based daemon service designed to automate application deployment via incoming webhooks.
+
+## 🧪 Test-Driven Development (TDD) Policy
+
+All Go source code in SDeploy MUST be developed using test-driven development (TDD):
+
+- Every new feature, bugfix, or refactor must be accompanied by one or more unit tests before implementation.
+- All major logic modules (webhook, deploy, config, email, logging) require corresponding `*_test.go` files.
+- Tests must cover:
+  - Webhook validation and routing
+  - Deployment locking and execution
+  - Config loading and error handling
+  - Email notification logic
+  - Logging output and error capture
+- CI/CD or local workflows must run `go test ./cmd/sdeploy/...` and all tests must pass before merging or release.
+- No code is considered complete or production-ready without passing tests.
+
+**Enforcement:**
+- PRs and code reviews must reject changes that lack appropriate tests.
+- All contributors must follow TDD for every code change.
 
 ## 🚀 Overview and Goal
 
@@ -22,6 +42,25 @@ The compiled binary is named `sdeploy`.
 | Daemon       | `./sdeploy -d`    | Background service. Output to console/logger. For use with system services. |
 
 Custom config file path: `./sdeploy -c /home/user/my_project/custom_config.json -d`
+
+## Project Folder Structure
+
+```bash
+sdeploy/
+└── cmd/
+    └── sdeploy/
+        ├── main.go
+        ├── webhook.go
+        ├── deploy.go
+        ├── config.go
+        ├── email.go
+        ├── logging.go
+        ├── webhook_test.go
+        ├── deploy_test.go
+        ├── config_test.go
+        ├── email_test.go
+        ├── logging_test.go
+```
 
 ### Running SDeploy as a Service (Production)
 

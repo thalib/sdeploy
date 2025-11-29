@@ -10,8 +10,13 @@ import (
 )
 
 // setProcessGroup sets the command to run in its own process group (Unix only)
+// If SysProcAttr already exists (e.g., with credentials), it preserves those settings
 func setProcessGroup(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	} else {
+		cmd.SysProcAttr.Setpgid = true
+	}
 }
 
 // killProcessGroup kills the process group (Unix only)

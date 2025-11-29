@@ -21,9 +21,11 @@ const (
 
 // WebhookHandler handles incoming webhook requests
 type WebhookHandler struct {
+	configManager *ConfigManager
+	logger        *Logger
+	deployer      *Deployer
+	// Legacy fields for backward compatibility when ConfigManager is not used
 	config   *Config
-	logger   *Logger
-	deployer *Deployer
 	projects map[string]*ProjectConfig
 }
 
@@ -43,9 +45,26 @@ func NewWebhookHandler(config *Config, logger *Logger) *WebhookHandler {
 	return h
 }
 
+// NewWebhookHandlerWithConfigManager creates a webhook handler with hot reload support
+func NewWebhookHandlerWithConfigManager(cm *ConfigManager, logger *Logger) *WebhookHandler {
+	return &WebhookHandler{
+		configManager: cm,
+		logger:        logger,
+	}
+}
+
 // SetDeployer sets the deployer for handling deployments
 func (h *WebhookHandler) SetDeployer(deployer *Deployer) {
 	h.deployer = deployer
+}
+
+// getProject looks up a project by webhook path, supporting both hot reload and legacy modes
+func (h *WebhookHandler) getProject(path string) *ProjectConfig {
+	if h.configManager != nil {
+		return h.configManager.GetProject(path)
+	}
+	// Fallback to legacy static map
+	return h.projects[path]
 }
 
 // ServeHTTP implements http.Handler
@@ -56,9 +75,9 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find project by path
-	project, exists := h.projects[r.URL.Path]
-	if !exists {
+	// Find project by path (supports hot reload)
+	project := h.getProject(r.URL.Path)
+	if project == nil {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}

@@ -11,6 +11,7 @@ A lightweight, Go-based daemon that automates deployments via webhooks.
 - **Git Integration** — Optional `git pull` before running deploy commands
 - **Email Notifications** — Send deployment summaries on completion
 - **Daemon Mode** — Run as a background service with logging
+- **Hot Reload** — Configuration changes are automatically applied without restart
 
 ## Quick Start
 
@@ -81,6 +82,46 @@ curl -X POST http://localhost:8080/hooks/myproject \
 curl -X POST "http://localhost:8080/hooks/myproject?secret=your_secret" \
   -d '{"ref":"refs/heads/main"}'
 ```
+
+## Hot Reload
+
+SDeploy automatically detects changes to the configuration file and applies them without requiring a restart.
+
+### What Gets Hot-Reloaded
+
+- ✅ Project configurations (add/remove/modify)
+- ✅ Email/SMTP settings
+- ✅ Log file path
+- ⚠️ Listen port (requires restart)
+
+### How It Works
+
+1. SDeploy watches the config file for changes
+2. When a change is detected, the new config is validated
+3. If valid, the new config is applied immediately
+4. If invalid, the current config is preserved and an error is logged
+
+### During Active Deployments
+
+If a deployment is in progress when the config file changes:
+- The reload is deferred until all active deployments complete
+- This ensures deployments use consistent configuration throughout
+
+### Example Log Output
+
+```
+[INFO] Hot reload enabled for config file: /etc/sdeploy/config.json
+[INFO] Reloading configuration...
+[INFO] Configuration reloaded successfully
+```
+
+### Troubleshooting Hot Reload
+
+| Issue | Solution |
+|-------|----------|
+| Config not reloading | Check file permissions and ensure SDeploy has read access |
+| Invalid config rejected | Check logs for validation errors, fix config and save again |
+| Port change not taking effect | Restart SDeploy - listen_port cannot be hot-reloaded |
 
 ## Documentation
 

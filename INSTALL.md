@@ -11,7 +11,7 @@
 ```sh
 go mod tidy
 go build -o sdeploy ./cmd/sdeploy
-go test ./cmd/sdeploy/...
+go test ./cmd/sdeploy/... -v
 ```
 
 ### Build with Docker
@@ -22,7 +22,7 @@ docker run --rm -v "$(pwd):/app" -w /app golang:latest \
 
 ## Run Test
 docker run --rm -v "$(pwd):/app" -w /app golang:latest \
-  sh -c "go test ./cmd/sdeploy/..."
+  sh -c "go test ./cmd/sdeploy/... -v"
 ```
 
 ## Run

@@ -28,11 +28,13 @@ func getShellPath() string {
 	}
 
 	// Fallback to common Windows shell locations
-	commonPaths := []string{
-		os.Getenv("COMSPEC"),
-		os.Getenv("SystemRoot") + "\\System32\\cmd.exe",
-		"C:\\Windows\\System32\\cmd.exe",
+	commonPaths := []string{os.Getenv("COMSPEC"), "C:\\Windows\\System32\\cmd.exe"}
+
+	// Add SystemRoot-based path only if SystemRoot is set
+	if systemRoot := os.Getenv("SystemRoot"); systemRoot != "" {
+		commonPaths = append([]string{systemRoot + "\\System32\\cmd.exe"}, commonPaths...)
 	}
+
 	for _, path := range commonPaths {
 		if path != "" {
 			if _, err := os.Stat(path); err == nil {

@@ -1,0 +1,26 @@
+{
+  "listen_port": 8080,
+  "log_filepath": "/var/log/sdeploy/daemon.log",
+  "email_config": {
+    "smtp_host": "smtp.example.com",
+    "smtp_port": 587,
+    "smtp_user": "user@example.com",
+    "smtp_pass": "your_smtp_password",
+    "email_sender": "sdeploy@example.com"
+  },
+  "projects": [
+    {
+      "name": "My Web App",
+      "webhook_path": "/hooks/webapp",
+      "webhook_secret": "your_webhook_secret_here",
+      "git_repo": "git@github.com:yourorg/webapp.git",
+      "git_path": "/var/repo/webapp",
+      "execute_path": "/var/www/webapp",
+      "git_branch": "main",
+      "execute_command": "sh deploy.sh",
+      "git_update": true,
+      "timeout_seconds": 300,
+      "email_recipients": ["team@example.com"]
+    }
+  ]
+}

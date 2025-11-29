@@ -3,8 +3,11 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
+	"os/user"
+	"strconv"
 	"syscall"
 )
 
@@ -43,4 +46,50 @@ func getShellPath() string {
 // getShellArgs returns the shell arguments for executing a command (Unix implementation)
 func getShellArgs() string {
 	return "-c"
+}
+
+// buildCommand creates an exec.Cmd with user/group settings (Unix implementation)
+// It runs the command as the specified user and group using sudo if we're root,
+// or falls back to running as current user if user lookup fails
+func buildCommand(ctx context.Context, command, runAsUser, runAsGroup string) *exec.Cmd {
+	// Check if we're running as root
+	currentUser, err := user.Current()
+	if err != nil || currentUser.Uid != "0" {
+		// Not running as root or can't determine user, run command directly
+		return exec.CommandContext(ctx, getShellPath(), getShellArgs(), command)
+	}
+
+	// Running as root, attempt to run as specified user/group
+	targetUser, err := user.Lookup(runAsUser)
+	if err != nil {
+		// User not found, run command directly as current user
+		return exec.CommandContext(ctx, getShellPath(), getShellArgs(), command)
+	}
+
+	targetGroup, err := user.LookupGroup(runAsGroup)
+	if err != nil {
+		// Group not found, run command directly as current user
+		return exec.CommandContext(ctx, getShellPath(), getShellArgs(), command)
+	}
+
+	uid, err := strconv.ParseUint(targetUser.Uid, 10, 32)
+	if err != nil {
+		return exec.CommandContext(ctx, getShellPath(), getShellArgs(), command)
+	}
+
+	gid, err := strconv.ParseUint(targetGroup.Gid, 10, 32)
+	if err != nil {
+		return exec.CommandContext(ctx, getShellPath(), getShellArgs(), command)
+	}
+
+	cmd := exec.CommandContext(ctx, getShellPath(), getShellArgs(), command)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uint32(uid),
+			Gid: uint32(gid),
+		},
+		Setpgid: true,
+	}
+
+	return cmd
 }

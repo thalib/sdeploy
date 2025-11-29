@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 )
@@ -50,4 +51,13 @@ func getShellPath() string {
 // getShellArgs returns the shell arguments for executing a command (Windows implementation)
 func getShellArgs() string {
 	return "/c"
+}
+
+// buildCommand creates an exec.Cmd (Windows implementation)
+// Windows doesn't support Unix-style user/group switching
+// The command runs as the current user
+func buildCommand(ctx context.Context, command, runAsUser, runAsGroup string) *exec.Cmd {
+	// Windows doesn't support Unix-style user/group switching
+	// Run command as current user
+	return exec.CommandContext(ctx, getShellPath(), getShellArgs(), command)
 }

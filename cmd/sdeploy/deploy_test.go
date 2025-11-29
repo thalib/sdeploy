@@ -515,3 +515,31 @@ func TestDeployErrorOutputLogging(t *testing.T) {
 		t.Errorf("Expected log to contain error message from command, got: %s", logOutput)
 	}
 }
+
+// TestDeploySuccessOutputLogging tests that output is logged when command succeeds
+func TestDeploySuccessOutputLogging(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLogger(&buf, "")
+	deployer := NewDeployer(logger)
+
+	project := &ProjectConfig{
+		Name:           "TestProject",
+		WebhookPath:    "/hooks/test",
+		ExecuteCommand: "echo 'build completed successfully'",
+	}
+
+	result := deployer.Deploy(context.Background(), project, "WEBHOOK")
+	if !result.Success {
+		t.Errorf("Expected deployment to succeed, got error: %s", result.Error)
+	}
+
+	logOutput := buf.String()
+
+	// Should log the command output when deployment succeeds
+	if !strings.Contains(logOutput, "Command output:") {
+		t.Errorf("Expected log to contain 'Command output:', got: %s", logOutput)
+	}
+	if !strings.Contains(logOutput, "build completed successfully") {
+		t.Errorf("Expected log to contain build output, got: %s", logOutput)
+	}
+}

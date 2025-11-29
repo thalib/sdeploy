@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,10 +29,12 @@ func (r *DeployResult) Duration() time.Duration {
 
 // Deployer handles deployment execution with locking
 type Deployer struct {
-	logger   *Logger
-	locks    map[string]*sync.Mutex
-	locksMu  sync.Mutex
-	notifier *EmailNotifier
+	logger        *Logger
+	locks         map[string]*sync.Mutex
+	locksMu       sync.Mutex
+	notifier      *EmailNotifier
+	configManager *ConfigManager
+	activeBuilds  int32 // atomic counter for active builds
 }
 
 // NewDeployer creates a new deployer instance
@@ -47,6 +50,11 @@ func (d *Deployer) SetNotifier(notifier *EmailNotifier) {
 	d.notifier = notifier
 }
 
+// SetConfigManager sets the config manager for deferred reload support
+func (d *Deployer) SetConfigManager(cm *ConfigManager) {
+	d.configManager = cm
+}
+
 // getProjectLock gets or creates a lock for a project
 func (d *Deployer) getProjectLock(projectPath string) *sync.Mutex {
 	d.locksMu.Lock()
@@ -59,6 +67,11 @@ func (d *Deployer) getProjectLock(projectPath string) *sync.Mutex {
 	lock := &sync.Mutex{}
 	d.locks[projectPath] = lock
 	return lock
+}
+
+// HasActiveBuilds returns true if there are any active builds in progress
+func (d *Deployer) HasActiveBuilds() bool {
+	return atomic.LoadInt32(&d.activeBuilds) > 0
 }
 
 // Deploy executes a deployment for the given project
@@ -79,7 +92,19 @@ func (d *Deployer) Deploy(ctx context.Context, project *ProjectConfig, triggerSo
 		}
 		return result
 	}
-	defer lock.Unlock()
+	defer func() {
+		lock.Unlock()
+		// Track active builds and process pending reload when all builds complete
+		if atomic.AddInt32(&d.activeBuilds, -1) == 0 && d.configManager != nil {
+			d.configManager.ProcessPendingReload()
+		}
+	}()
+
+	// Increment active builds counter and set reload pending if configManager is set
+	atomic.AddInt32(&d.activeBuilds, 1)
+	if d.configManager != nil {
+		d.configManager.SetReloadPending(true)
+	}
 
 	if d.logger != nil {
 		d.logger.Infof(project.Name, "Starting deployment (trigger: %s)", triggerSource)

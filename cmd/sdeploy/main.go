@@ -33,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Load configuration
+	// Load configuration using ConfigManager for hot reload support
 	cfg, err := LoadConfig(cfgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -54,6 +54,13 @@ func main() {
 	// Log configuration summary
 	logConfigSummary(logger, cfg)
 
+	// Create ConfigManager for hot reload
+	configManager, err := NewConfigManager(cfgPath, logger)
+	if err != nil {
+		logger.Errorf("", "Failed to create config manager: %v", err)
+		os.Exit(1)
+	}
+
 	// Initialize email notifier
 	var notifier *EmailNotifier
 	if IsEmailConfigValid(cfg.EmailConfig) {
@@ -66,10 +73,27 @@ func main() {
 	// Initialize deployer
 	deployer := NewDeployer(logger)
 	deployer.SetNotifier(notifier)
+	deployer.SetConfigManager(configManager)
 
-	// Initialize webhook handler
-	handler := NewWebhookHandler(cfg, logger)
+	// Initialize webhook handler with hot reload support
+	handler := NewWebhookHandlerWithConfigManager(configManager, logger)
 	handler.SetDeployer(deployer)
+
+	// Set up callback for config reload to update email notifier
+	configManager.SetOnReload(func(newCfg *Config) {
+		if IsEmailConfigValid(newCfg.EmailConfig) {
+			newNotifier := NewEmailNotifier(newCfg.EmailConfig, logger)
+			deployer.SetNotifier(newNotifier)
+		} else {
+			deployer.SetNotifier(nil)
+		}
+	})
+
+	// Start config file watcher for hot reload
+	if err := configManager.StartWatcher(); err != nil {
+		logger.Warnf("", "Failed to start config file watcher: %v (hot reload disabled)", err)
+	}
+	defer configManager.Stop()
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)

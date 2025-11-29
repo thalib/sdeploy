@@ -202,6 +202,59 @@ SDeploy searches for its config file in order:
 - **Startup Logging:** On daemon start, print all global settings and project configurations to the log file.
 - **Per-Build Logging:** For each build/deployment, print the project configuration in the log.
 - **Email Notification:** On completion, sends summary email if configured (disabled if `email_config` is missing/invalid or `email_recipients` is empty).
+- **Hot Reload:** Configuration file changes are automatically detected and applied without restarting the daemon.
+
+## 🔄 Hot Reload
+
+SDeploy supports hot reloading of the configuration file. When the config file is modified, SDeploy automatically detects the change and applies the new configuration.
+
+### Hot Reload Behavior
+
+| Aspect                | Behavior                                                                 |
+|-----------------------|--------------------------------------------------------------------------|
+| Detection             | File system watcher monitors the config file for changes                 |
+| Validation            | New configuration is validated before applying; invalid configs are rejected |
+| Thread Safety         | Configuration reload is thread-safe using mutex protection               |
+| Build Deferral        | If a deployment is in progress, config reload is deferred until completion |
+| Logging               | All reload events (success, failure, deferral) are logged                |
+
+### What Can Be Hot-Reloaded
+
+- **Projects:** Add, remove, or modify project configurations
+- **Email Configuration:** Update SMTP settings and sender
+- **Log File Path:** Change log file location (takes effect for new log entries)
+
+### What Cannot Be Hot-Reloaded
+
+- **Listen Port:** Changing `listen_port` requires a daemon restart
+- **Active Deployments:** Ongoing deployments continue with the previous configuration
+
+### Hot Reload Error Handling
+
+| Error Type            | Handling                                                                 |
+|-----------------------|--------------------------------------------------------------------------|
+| File Read Error       | Log error, keep current configuration                                    |
+| JSON Parse Error      | Log error with details, keep current configuration                       |
+| Validation Error      | Log error with details, keep current configuration                       |
+| File Watcher Error    | Log error, attempt to re-establish watcher                               |
+
+### Hot Reload Logging
+
+On successful reload:
+```
+[INFO] Configuration reloaded successfully
+```
+
+On reload error:
+```
+[ERROR] Failed to reload configuration: <error details>
+```
+
+On deferred reload (build in progress):
+```
+[INFO] Configuration reload deferred: deployment in progress
+[INFO] Configuration reloaded successfully (deferred)
+```
 
 ## 🛡️ Operational Principles
 

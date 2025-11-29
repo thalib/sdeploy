@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -27,10 +28,10 @@ func (r *DeployResult) Duration() time.Duration {
 
 // Deployer handles deployment execution with locking
 type Deployer struct {
-	logger    *Logger
-	locks     map[string]*sync.Mutex
-	locksMu   sync.Mutex
-	notifier  *EmailNotifier
+	logger   *Logger
+	locks    map[string]*sync.Mutex
+	locksMu  sync.Mutex
+	notifier *EmailNotifier
 }
 
 // NewDeployer creates a new deployer instance
@@ -84,16 +85,20 @@ func (d *Deployer) Deploy(ctx context.Context, project *ProjectConfig, triggerSo
 		d.logger.Infof(project.Name, "Starting deployment (trigger: %s)", triggerSource)
 	}
 
-	// Git pull if configured
-	if project.GitUpdate && project.GitPath != "" {
-		if err := d.gitPull(ctx, project); err != nil {
-			result.Error = fmt.Sprintf("git pull failed: %v", err)
+	// Log build config
+	d.logBuildConfig(project)
+
+	// Git operations (if git_repo is configured)
+	if project.GitRepo != "" {
+		if err := d.handleGitOperations(ctx, project); err != nil {
+			result.Error = err.Error()
 			result.EndTime = time.Now()
-			if d.logger != nil {
-				d.logger.Errorf(project.Name, "Git pull failed: %v", err)
-			}
 			d.sendNotification(project, &result, triggerSource)
 			return result
+		}
+	} else {
+		if d.logger != nil {
+			d.logger.Infof(project.Name, "No git_repo configured, treating local_path as local directory")
 		}
 	}
 
@@ -119,14 +124,97 @@ func (d *Deployer) Deploy(ctx context.Context, project *ProjectConfig, triggerSo
 	return result
 }
 
-// gitPull executes git pull in the project's git path
+// logBuildConfig logs the project configuration at the start of a build
+func (d *Deployer) logBuildConfig(project *ProjectConfig) {
+	if d.logger == nil {
+		return
+	}
+	d.logger.Infof(project.Name, "Build config: name=%s, local_path=%s, git_repo=%s, git_branch=%s, git_update=%t, execute_path=%s, execute_command=%s",
+		project.Name,
+		project.LocalPath,
+		project.GitRepo,
+		project.GitBranch,
+		project.GitUpdate,
+		project.ExecutePath,
+		project.ExecuteCommand,
+	)
+}
+
+// handleGitOperations handles git clone/pull based on configuration
+func (d *Deployer) handleGitOperations(ctx context.Context, project *ProjectConfig) error {
+	// Check if local_path exists and is a git repo
+	if !isGitRepo(project.LocalPath) {
+		// Need to clone
+		if err := d.gitClone(ctx, project.GitRepo, project.LocalPath, project.GitBranch); err != nil {
+			if d.logger != nil {
+				d.logger.Errorf(project.Name, "Git clone failed: %v", err)
+			}
+			return fmt.Errorf("git clone failed: %v", err)
+		}
+		if d.logger != nil {
+			d.logger.Infof(project.Name, "Cloned repository to %s", project.LocalPath)
+		}
+	} else {
+		if d.logger != nil {
+			d.logger.Infof(project.Name, "Repository already cloned at %s", project.LocalPath)
+		}
+		// Check if we should do git pull
+		if project.GitUpdate {
+			if err := d.gitPull(ctx, project); err != nil {
+				if d.logger != nil {
+					d.logger.Errorf(project.Name, "Git pull failed: %v", err)
+				}
+				return fmt.Errorf("git pull failed: %v", err)
+			}
+			if d.logger != nil {
+				d.logger.Infof(project.Name, "Executed git pull")
+			}
+		} else {
+			if d.logger != nil {
+				d.logger.Infof(project.Name, "git_update is false, skipping git pull")
+			}
+		}
+	}
+	return nil
+}
+
+// isGitRepo checks if the given path is a git repository
+func isGitRepo(path string) bool {
+	if path == "" {
+		return false
+	}
+	gitDir := filepath.Join(path, ".git")
+	info, err := os.Stat(gitDir)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+// gitClone clones a git repository to the specified local path
+func (d *Deployer) gitClone(ctx context.Context, repoURL, localPath, branch string) error {
+	if d.logger != nil {
+		d.logger.Infof("Git", "Cloning %s to %s (branch: %s)", repoURL, localPath, branch)
+	}
+
+	// Clone the repository with specific branch
+	cmd := exec.CommandContext(ctx, "git", "clone", "--branch", branch, repoURL, localPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, string(output))
+	}
+
+	return nil
+}
+
+// gitPull executes git pull in the project's local path
 func (d *Deployer) gitPull(ctx context.Context, project *ProjectConfig) error {
 	if d.logger != nil {
-		d.logger.Infof(project.Name, "Executing git pull in %s", project.GitPath)
+		d.logger.Infof(project.Name, "Executing git pull in %s", project.LocalPath)
 	}
 
 	cmd := exec.CommandContext(ctx, "git", "pull")
-	cmd.Dir = project.GitPath
+	cmd.Dir = project.LocalPath
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

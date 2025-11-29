@@ -21,7 +21,7 @@ type ProjectConfig struct {
 	WebhookPath     string   `json:"webhook_path"`
 	WebhookSecret   string   `json:"webhook_secret"`
 	GitRepo         string   `json:"git_repo"`
-	GitPath         string   `json:"git_path"`
+	LocalPath       string   `json:"local_path"`
 	ExecutePath     string   `json:"execute_path"`
 	GitBranch       string   `json:"git_branch"`
 	ExecuteCommand  string   `json:"execute_command"`
@@ -68,7 +68,10 @@ func validateConfig(cfg *Config) error {
 	// Check for at least one project (optional, but need to validate projects if present)
 	webhookPaths := make(map[string]bool)
 
-	for i, project := range cfg.Projects {
+	// Note: Using pointer to project (not range value) to allow modification of slice elements
+	for i := range cfg.Projects {
+		project := &cfg.Projects[i]
+
 		// Validate required fields
 		if project.WebhookPath == "" {
 			return fmt.Errorf("project %d: webhook_path is required", i+1)
@@ -87,6 +90,11 @@ func validateConfig(cfg *Config) error {
 			return fmt.Errorf("duplicate webhook_path: %s", project.WebhookPath)
 		}
 		webhookPaths[project.WebhookPath] = true
+
+		// Default git_branch to "main" if not set
+		if project.GitBranch == "" {
+			project.GitBranch = "main"
+		}
 	}
 
 	return nil
@@ -118,4 +126,27 @@ func FindConfigFile(explicitPath string) string {
 	}
 
 	return ""
+}
+
+// IsEmailConfigValid checks if the email configuration is valid and complete
+func IsEmailConfigValid(cfg *EmailConfig) bool {
+	if cfg == nil {
+		return false
+	}
+	if cfg.SMTPHost == "" {
+		return false
+	}
+	if cfg.SMTPPort == 0 {
+		return false
+	}
+	if cfg.SMTPUser == "" {
+		return false
+	}
+	if cfg.SMTPPass == "" {
+		return false
+	}
+	if cfg.EmailSender == "" {
+		return false
+	}
+	return true
 }

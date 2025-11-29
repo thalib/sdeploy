@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -831,5 +833,57 @@ func TestGetEffectiveRunAs(t *testing.T) {
 				t.Errorf("getEffectiveRunAs() group = %v, want %v", gotGroup, tt.wantGroup)
 			}
 		})
+	}
+}
+
+// TestSetProcessGroupPreservesCredentials tests that setProcessGroup preserves existing SysProcAttr
+func TestSetProcessGroupPreservesCredentials(t *testing.T) {
+	ctx := context.Background()
+	
+	// Create a command with SysProcAttr already set (simulating buildCommand with credentials)
+	cmd := exec.CommandContext(ctx, "echo", "test")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: 1000,
+			Gid: 1000,
+		},
+	}
+	
+	// Call setProcessGroup - it should preserve the credential
+	setProcessGroup(cmd)
+	
+	// Verify Setpgid was set
+	if !cmd.SysProcAttr.Setpgid {
+		t.Error("Expected Setpgid to be true")
+	}
+	
+	// Verify Credential was preserved
+	if cmd.SysProcAttr.Credential == nil {
+		t.Fatal("Expected Credential to be preserved, but it was nil")
+	}
+	if cmd.SysProcAttr.Credential.Uid != 1000 {
+		t.Errorf("Expected Uid 1000, got %d", cmd.SysProcAttr.Credential.Uid)
+	}
+	if cmd.SysProcAttr.Credential.Gid != 1000 {
+		t.Errorf("Expected Gid 1000, got %d", cmd.SysProcAttr.Credential.Gid)
+	}
+}
+
+// TestSetProcessGroupWithNilSysProcAttr tests setProcessGroup when SysProcAttr is nil
+func TestSetProcessGroupWithNilSysProcAttr(t *testing.T) {
+	ctx := context.Background()
+	
+	// Create a command without SysProcAttr
+	cmd := exec.CommandContext(ctx, "echo", "test")
+	
+	// Call setProcessGroup
+	setProcessGroup(cmd)
+	
+	// Verify SysProcAttr was created with Setpgid
+	if cmd.SysProcAttr == nil {
+		t.Error("Expected SysProcAttr to be created")
+	}
+	if cmd.SysProcAttr != nil && !cmd.SysProcAttr.Setpgid {
+		t.Error("Expected Setpgid to be true")
 	}
 }

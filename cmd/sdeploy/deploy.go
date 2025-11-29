@@ -179,7 +179,7 @@ func (d *Deployer) handleGitOperations(ctx context.Context, project *ProjectConf
 	// Check if local_path exists and is a git repo
 	if !isGitRepo(project.LocalPath) {
 		// Need to clone
-		if err := d.gitClone(ctx, project.GitRepo, project.LocalPath, project.GitBranch, runAsUser, runAsGroup); err != nil {
+		if err := d.gitClone(ctx, project.Name, project.GitRepo, project.LocalPath, project.GitBranch, runAsUser, runAsGroup); err != nil {
 			if d.logger != nil {
 				d.logger.Errorf(project.Name, "Git clone failed: %v", err)
 			}
@@ -226,17 +226,17 @@ func isGitRepo(path string) bool {
 }
 
 // gitClone clones a git repository to the specified local path
-func (d *Deployer) gitClone(ctx context.Context, repoURL, localPath, branch, runAsUser, runAsGroup string) error {
+func (d *Deployer) gitClone(ctx context.Context, projectName, repoURL, localPath, branch, runAsUser, runAsGroup string) error {
 	gitCmd := fmt.Sprintf("git clone --branch %s %s %s", branch, repoURL, localPath)
 	if d.logger != nil {
-		d.logger.Infof("Git", "Running: %s", gitCmd)
-		d.logger.Infof("Git", "Run As: %s:%s", runAsUser, runAsGroup)
+		d.logger.Infof(projectName, "Running: %s", gitCmd)
+		d.logger.Infof(projectName, "Run As: %s:%s", runAsUser, runAsGroup)
 	}
 
 	// Build the command with user/group support
 	cmd, warning := buildCommand(ctx, gitCmd, runAsUser, runAsGroup)
 	if warning != "" && d.logger != nil {
-		d.logger.Warnf("Git", "%s", warning)
+		d.logger.Warnf(projectName, "%s", warning)
 	}
 
 	// Set process group so we can kill all child processes
@@ -245,7 +245,7 @@ func (d *Deployer) gitClone(ctx context.Context, repoURL, localPath, branch, run
 	output, err := cmd.CombinedOutput()
 	
 	if d.logger != nil && len(output) > 0 {
-		d.logger.Infof("Git", "Output: %s", strings.TrimSpace(string(output)))
+		d.logger.Infof(projectName, "Output: %s", strings.TrimSpace(string(output)))
 	}
 	
 	if err != nil {

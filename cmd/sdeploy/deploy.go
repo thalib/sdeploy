@@ -194,22 +194,14 @@ func isGitRepo(path string) bool {
 // gitClone clones a git repository to the specified local path
 func (d *Deployer) gitClone(ctx context.Context, repoURL, localPath, branch string) error {
 	if d.logger != nil {
-		d.logger.Infof("", "Cloning %s to %s (branch: %s)", repoURL, localPath, branch)
+		d.logger.Infof("Git", "Cloning %s to %s (branch: %s)", repoURL, localPath, branch)
 	}
 
-	// Clone the repository
-	cmd := exec.CommandContext(ctx, "git", "clone", repoURL, localPath)
+	// Clone the repository with specific branch
+	cmd := exec.CommandContext(ctx, "git", "clone", "--branch", branch, repoURL, localPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v: %s", err, string(output))
-	}
-
-	// Checkout the branch
-	cmd = exec.CommandContext(ctx, "git", "checkout", branch)
-	cmd.Dir = localPath
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("checkout failed: %v: %s", err, string(output))
 	}
 
 	return nil

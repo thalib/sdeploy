@@ -68,6 +68,7 @@ func validateConfig(cfg *Config) error {
 	// Check for at least one project (optional, but need to validate projects if present)
 	webhookPaths := make(map[string]bool)
 
+	// Note: Using pointer to project (not range value) to allow modification of slice elements
 	for i := range cfg.Projects {
 		project := &cfg.Projects[i]
 

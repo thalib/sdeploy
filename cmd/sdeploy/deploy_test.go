@@ -97,7 +97,7 @@ func TestDeployGitPull(t *testing.T) {
 		Name:           "TestProject",
 		WebhookPath:    "/hooks/test",
 		GitUpdate:      true,
-		GitPath:        gitPath,
+		LocalPath:      gitPath,
 		ExecutePath:    tmpDir,
 		ExecuteCommand: "echo done",
 	}
@@ -301,5 +301,159 @@ func TestDeployWorkingDirectory(t *testing.T) {
 
 	if !strings.Contains(string(content), tmpDir) {
 		t.Errorf("Expected working directory %s, got: %s", tmpDir, string(content))
+	}
+}
+
+// TestIsGitRepo tests the isGitRepo function
+func TestIsGitRepo(t *testing.T) {
+	// Test with empty path
+	if isGitRepo("") {
+		t.Error("Expected isGitRepo('') to return false")
+	}
+
+	// Test with non-existent path
+	if isGitRepo("/nonexistent/path") {
+		t.Error("Expected isGitRepo on non-existent path to return false")
+	}
+
+	// Test with directory that has .git
+	tmpDir := t.TempDir()
+	gitDir := filepath.Join(tmpDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	if !isGitRepo(tmpDir) {
+		t.Error("Expected isGitRepo to return true for directory with .git")
+	}
+
+	// Test with directory that does NOT have .git
+	emptyDir := t.TempDir()
+	if isGitRepo(emptyDir) {
+		t.Error("Expected isGitRepo to return false for directory without .git")
+	}
+
+	// Test with .git as file instead of directory
+	fileDir := t.TempDir()
+	gitFile := filepath.Join(fileDir, ".git")
+	if err := os.WriteFile(gitFile, []byte("not a directory"), 0644); err != nil {
+		t.Fatalf("Failed to create .git file: %v", err)
+	}
+
+	if isGitRepo(fileDir) {
+		t.Error("Expected isGitRepo to return false when .git is a file not a directory")
+	}
+}
+
+// TestDeployNoGitRepo tests deployment with no git_repo configured (local directory only)
+func TestDeployNoGitRepo(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	var buf bytes.Buffer
+	logger := NewLogger(&buf, "")
+	deployer := NewDeployer(logger)
+
+	project := &ProjectConfig{
+		Name:           "LocalProject",
+		WebhookPath:    "/hooks/local",
+		LocalPath:      tmpDir,
+		ExecutePath:    tmpDir,
+		ExecuteCommand: "echo local",
+	}
+
+	result := deployer.Deploy(context.Background(), project, "INTERNAL")
+
+	if !result.Success {
+		t.Errorf("Expected deployment to succeed, got error: %s", result.Error)
+	}
+
+	logOutput := buf.String()
+	if !strings.Contains(logOutput, "No git_repo configured, treating local_path as local directory") {
+		t.Errorf("Expected log message about no git_repo, got: %s", logOutput)
+	}
+}
+
+// TestDeployGitRepoAlreadyCloned tests deployment when git repo is already cloned
+func TestDeployGitRepoAlreadyCloned(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a .git directory to simulate an already cloned repo
+	gitDir := filepath.Join(tmpDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	var buf bytes.Buffer
+	logger := NewLogger(&buf, "")
+	deployer := NewDeployer(logger)
+
+	project := &ProjectConfig{
+		Name:           "ClonedProject",
+		WebhookPath:    "/hooks/cloned",
+		GitRepo:        "https://github.com/example/repo.git",
+		LocalPath:      tmpDir,
+		GitBranch:      "main",
+		GitUpdate:      false,
+		ExecutePath:    tmpDir,
+		ExecuteCommand: "echo done",
+	}
+
+	result := deployer.Deploy(context.Background(), project, "WEBHOOK")
+
+	logOutput := buf.String()
+
+	// Should see "Repository already cloned at" message
+	if !strings.Contains(logOutput, "Repository already cloned at") {
+		t.Errorf("Expected log message about already cloned repo, got: %s", logOutput)
+	}
+
+	// Should see "git_update is false, skipping git pull" message
+	if !strings.Contains(logOutput, "git_update is false, skipping git pull") {
+		t.Errorf("Expected log message about skipping git pull, got: %s", logOutput)
+	}
+
+	if !result.Success {
+		t.Errorf("Expected deployment to succeed, got error: %s", result.Error)
+	}
+}
+
+// TestDeployBuildConfigLogging tests that build config is logged
+func TestDeployBuildConfigLogging(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a .git directory to simulate an already cloned repo
+	gitDir := filepath.Join(tmpDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	var buf bytes.Buffer
+	logger := NewLogger(&buf, "")
+	deployer := NewDeployer(logger)
+
+	project := &ProjectConfig{
+		Name:           "TestProject",
+		WebhookPath:    "/hooks/test",
+		GitRepo:        "https://github.com/example/repo.git",
+		LocalPath:      tmpDir,
+		GitBranch:      "main",
+		GitUpdate:      false, // Don't try to pull
+		ExecutePath:    tmpDir,
+		ExecuteCommand: "echo test",
+	}
+
+	deployer.Deploy(context.Background(), project, "WEBHOOK")
+
+	logOutput := buf.String()
+
+	// Should see build config log
+	if !strings.Contains(logOutput, "Build config:") {
+		t.Errorf("Expected build config to be logged, got: %s", logOutput)
+	}
+	if !strings.Contains(logOutput, "name=TestProject") {
+		t.Errorf("Expected project name in build config, got: %s", logOutput)
+	}
+	if !strings.Contains(logOutput, "local_path=") {
+		t.Errorf("Expected local_path in build config, got: %s", logOutput)
 	}
 }

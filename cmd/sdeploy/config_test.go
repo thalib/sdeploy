@@ -28,7 +28,7 @@ func TestLoadConfigValidFile(t *testing.T) {
 				"webhook_path": "/hooks/frontend",
 				"webhook_secret": "secret_token_123",
 				"git_repo": "git@github.com:myorg/frontend.git",
-				"git_path": "/var/repo/frontend",
+				"local_path": "/var/repo/frontend",
 				"execute_path": "/var/www/site",
 				"git_branch": "main",
 				"execute_command": "sh /var/www/site/deploy.sh",
@@ -231,7 +231,7 @@ func TestProjectConfigOptionalFields(t *testing.T) {
 				"webhook_path": "/hooks/frontend",
 				"webhook_secret": "secret_token_123",
 				"git_repo": "git@github.com:myorg/frontend.git",
-				"git_path": "/var/repo/frontend",
+				"local_path": "/var/repo/frontend",
 				"execute_path": "/var/www/site",
 				"git_branch": "main",
 				"execute_command": "sh deploy.sh",
@@ -263,5 +263,162 @@ func TestProjectConfigOptionalFields(t *testing.T) {
 
 	if !project.GitUpdate {
 		t.Error("Expected GitUpdate to be true")
+	}
+}
+
+// TestIsEmailConfigValid tests the IsEmailConfigValid function
+func TestIsEmailConfigValid(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *EmailConfig
+		expected bool
+	}{
+		{
+			name:     "nil config",
+			config:   nil,
+			expected: false,
+		},
+		{
+			name: "valid config",
+			config: &EmailConfig{
+				SMTPHost:    "smtp.example.com",
+				SMTPPort:    587,
+				SMTPUser:    "user",
+				SMTPPass:    "pass",
+				EmailSender: "sender@example.com",
+			},
+			expected: true,
+		},
+		{
+			name: "missing smtp_host",
+			config: &EmailConfig{
+				SMTPHost:    "",
+				SMTPPort:    587,
+				SMTPUser:    "user",
+				SMTPPass:    "pass",
+				EmailSender: "sender@example.com",
+			},
+			expected: false,
+		},
+		{
+			name: "missing smtp_port (0)",
+			config: &EmailConfig{
+				SMTPHost:    "smtp.example.com",
+				SMTPPort:    0,
+				SMTPUser:    "user",
+				SMTPPass:    "pass",
+				EmailSender: "sender@example.com",
+			},
+			expected: false,
+		},
+		{
+			name: "missing smtp_user",
+			config: &EmailConfig{
+				SMTPHost:    "smtp.example.com",
+				SMTPPort:    587,
+				SMTPUser:    "",
+				SMTPPass:    "pass",
+				EmailSender: "sender@example.com",
+			},
+			expected: false,
+		},
+		{
+			name: "missing smtp_pass",
+			config: &EmailConfig{
+				SMTPHost:    "smtp.example.com",
+				SMTPPort:    587,
+				SMTPUser:    "user",
+				SMTPPass:    "",
+				EmailSender: "sender@example.com",
+			},
+			expected: false,
+		},
+		{
+			name: "missing email_sender",
+			config: &EmailConfig{
+				SMTPHost:    "smtp.example.com",
+				SMTPPort:    587,
+				SMTPUser:    "user",
+				SMTPPass:    "pass",
+				EmailSender: "",
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsEmailConfigValid(tc.config)
+			if result != tc.expected {
+				t.Errorf("IsEmailConfigValid() = %v, expected %v", result, tc.expected)
+			}
+		})
+	}
+}
+
+// TestDefaultGitBranch tests that git_branch defaults to "main" when empty
+func TestDefaultGitBranch(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Config without git_branch
+	configNoGitBranch := `{
+		"listen_port": 8080,
+		"projects": [
+			{
+				"name": "Frontend",
+				"webhook_path": "/hooks/frontend",
+				"webhook_secret": "secret_token_123",
+				"execute_command": "sh deploy.sh"
+			}
+		]
+	}`
+
+	err := os.WriteFile(configPath, []byte(configNoGitBranch), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if cfg.Projects[0].GitBranch != "main" {
+		t.Errorf("Expected default GitBranch 'main', got '%s'", cfg.Projects[0].GitBranch)
+	}
+}
+
+// TestGitBranchNotOverwritten tests that a set git_branch is not overwritten
+func TestGitBranchNotOverwritten(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Config with explicit git_branch
+	configWithGitBranch := `{
+		"listen_port": 8080,
+		"projects": [
+			{
+				"name": "Frontend",
+				"webhook_path": "/hooks/frontend",
+				"webhook_secret": "secret_token_123",
+				"git_branch": "develop",
+				"execute_command": "sh deploy.sh"
+			}
+		]
+	}`
+
+	err := os.WriteFile(configPath, []byte(configWithGitBranch), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if cfg.Projects[0].GitBranch != "develop" {
+		t.Errorf("Expected GitBranch 'develop', got '%s'", cfg.Projects[0].GitBranch)
 	}
 }

@@ -8,6 +8,11 @@ import (
 	"os/signal"
 )
 
+const (
+	Version     = "v1.0"
+	ServiceName = "SDeploy"
+)
+
 func main() {
 	// Parse command line flags
 	configPath := flag.String("c", "", "Path to config file")
@@ -44,16 +49,18 @@ func main() {
 	}
 	defer logger.Close()
 
-	logger.Info("SDeploy", "Starting SDeploy webhook daemon")
-	logger.Infof("SDeploy", "Config loaded from: %s", cfgPath)
-	logger.Infof("SDeploy", "Listening on port: %d", cfg.ListenPort)
-	logger.Infof("SDeploy", "Projects configured: %d", len(cfg.Projects))
+	logger.Infof(ServiceName, "%s %s - Service started", ServiceName, Version)
+
+	// Log configuration summary
+	logConfigSummary(logger, cfg)
 
 	// Initialize email notifier
 	var notifier *EmailNotifier
-	if cfg.EmailConfig != nil {
+	if IsEmailConfigValid(cfg.EmailConfig) {
 		notifier = NewEmailNotifier(cfg.EmailConfig, logger)
-		logger.Info("SDeploy", "Email notifications enabled")
+		logger.Info(ServiceName, "Email notifications enabled")
+	} else {
+		logger.Info(ServiceName, "Email notification disabled: email_config is missing or invalid.")
 	}
 
 	// Initialize deployer
@@ -76,28 +83,63 @@ func main() {
 	}
 
 	go func() {
-		logger.Infof("SDeploy", "Server starting on %s", addr)
+		logger.Infof(ServiceName, "Server starting on %s", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Errorf("SDeploy", "Server error: %v", err)
+			logger.Errorf(ServiceName, "Server error: %v", err)
 			os.Exit(1)
 		}
 	}()
 
 	// Wait for shutdown signal
 	sig := <-sigChan
-	logger.Infof("SDeploy", "Received signal %v, shutting down...", sig)
+	logger.Infof(ServiceName, "Received signal %v, shutting down...", sig)
 
 	// Graceful shutdown
 	if err := server.Close(); err != nil {
-		logger.Errorf("SDeploy", "Error during shutdown: %v", err)
+		logger.Errorf(ServiceName, "Error during shutdown: %v", err)
 	}
 
-	logger.Info("SDeploy", "SDeploy stopped")
+	logger.Infof(ServiceName, "%s %s - Service terminated", ServiceName, Version)
+}
+
+// logConfigSummary logs all configuration settings on startup
+func logConfigSummary(logger *Logger, cfg *Config) {
+	logger.Info(ServiceName, "Configuration loaded:")
+	logger.Infof(ServiceName, "  Listen Port: %d", cfg.ListenPort)
+	if cfg.LogFilepath != "" {
+		logger.Infof(ServiceName, "  Log File: %s", cfg.LogFilepath)
+	}
+	if IsEmailConfigValid(cfg.EmailConfig) {
+		logger.Info(ServiceName, "  Email Notifications: enabled")
+	} else {
+		logger.Info(ServiceName, "  Email Notifications: disabled")
+	}
+
+	for i, project := range cfg.Projects {
+		logger.Infof(ServiceName, "Project [%d]: %s", i+1, project.Name)
+		logger.Infof(ServiceName, "  - Webhook Path: %s", project.WebhookPath)
+		if project.LocalPath != "" {
+			logger.Infof(ServiceName, "  - Local Path: %s", project.LocalPath)
+		}
+		if project.GitRepo != "" {
+			logger.Infof(ServiceName, "  - Git Repo: %s", project.GitRepo)
+		}
+		logger.Infof(ServiceName, "  - Git Branch: %s", project.GitBranch)
+		logger.Infof(ServiceName, "  - Git Update: %t", project.GitUpdate)
+		if project.ExecutePath != "" {
+			logger.Infof(ServiceName, "  - Execute Path: %s", project.ExecutePath)
+		}
+		logger.Infof(ServiceName, "  - Execute Command: %s", project.ExecuteCommand)
+		if project.TimeoutSeconds > 0 {
+			logger.Infof(ServiceName, "  - Timeout: %ds", project.TimeoutSeconds)
+		}
+		logger.Infof(ServiceName, "  - Email Recipients: %d", len(project.EmailRecipients))
+	}
 }
 
 // printUsage prints the help message
 func printUsage() {
-	fmt.Println("SDeploy - Simple Webhook Deployment Daemon")
+	fmt.Printf("%s %s - Simple Webhook Deployment Daemon\n", ServiceName, Version)
 	fmt.Println()
 	fmt.Println("Usage: sdeploy [options]")
 	fmt.Println()

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -112,16 +113,32 @@ func (d *Deployer) Deploy(ctx context.Context, project *ProjectConfig, triggerSo
 		result.Error = err.Error()
 		if d.logger != nil {
 			d.logger.Errorf(project.Name, "Deployment failed: %v", err)
+			d.logCommandOutput(project.Name, output, true)
 		}
 	} else {
 		result.Success = true
 		if d.logger != nil {
 			d.logger.Infof(project.Name, "Deployment completed in %v", result.Duration())
+			d.logCommandOutput(project.Name, output, false)
 		}
 	}
 
 	d.sendNotification(project, &result, triggerSource)
 	return result
+}
+
+// logCommandOutput logs the command output if it's not empty
+func (d *Deployer) logCommandOutput(projectName, output string, isError bool) {
+	if d.logger == nil {
+		return
+	}
+	if trimmedOutput := strings.TrimSpace(output); trimmedOutput != "" {
+		if isError {
+			d.logger.Errorf(projectName, "Command output: %s", trimmedOutput)
+		} else {
+			d.logger.Infof(projectName, "Command output: %s", trimmedOutput)
+		}
+	}
 }
 
 // logBuildConfig logs the project configuration at the start of a build

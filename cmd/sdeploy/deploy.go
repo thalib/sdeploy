@@ -112,6 +112,9 @@ func (d *Deployer) Deploy(ctx context.Context, project *ProjectConfig, triggerSo
 		result.Error = err.Error()
 		if d.logger != nil {
 			d.logger.Errorf(project.Name, "Deployment failed: %v", err)
+			if output != "" {
+				d.logger.Errorf(project.Name, "Command output: %s", output)
+			}
 		}
 	} else {
 		result.Success = true

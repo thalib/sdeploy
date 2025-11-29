@@ -487,3 +487,31 @@ func TestGetShellArgs(t *testing.T) {
 		t.Errorf("Expected shell args to be '-c' or '/c', got: %s", args)
 	}
 }
+
+// TestDeployErrorOutputLogging tests that error output is logged when command fails
+func TestDeployErrorOutputLogging(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLogger(&buf, "")
+	deployer := NewDeployer(logger)
+
+	project := &ProjectConfig{
+		Name:           "TestProject",
+		WebhookPath:    "/hooks/test",
+		ExecuteCommand: "echo 'error message' >&2 && exit 1",
+	}
+
+	result := deployer.Deploy(context.Background(), project, "WEBHOOK")
+	if result.Success {
+		t.Error("Expected deployment to fail")
+	}
+
+	logOutput := buf.String()
+
+	// Should log the command output when deployment fails
+	if !strings.Contains(logOutput, "Command output:") {
+		t.Errorf("Expected log to contain 'Command output:', got: %s", logOutput)
+	}
+	if !strings.Contains(logOutput, "error message") {
+		t.Errorf("Expected log to contain error message from command, got: %s", logOutput)
+	}
+}

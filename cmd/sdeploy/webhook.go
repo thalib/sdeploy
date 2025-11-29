@@ -107,16 +107,8 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		if h.deployer != nil {
 			// Use a background context since HTTP request context is canceled after response
-			result := h.deployer.Deploy(context.Background(), project, string(triggerSource))
-			if h.logger != nil {
-				if result.Skipped {
-					h.logger.Warnf(project.Name, "Deployment skipped (already in progress)")
-				} else if result.Success {
-					h.logger.Infof(project.Name, "Deployment completed successfully")
-				} else {
-					h.logger.Errorf(project.Name, "Deployment failed: %s", result.Error)
-				}
-			}
+			// Deploy already logs start/completion/failure, so no extra logging needed here
+			h.deployer.Deploy(context.Background(), project, string(triggerSource))
 		}
 	}()
 

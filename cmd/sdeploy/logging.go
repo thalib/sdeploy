@@ -32,7 +32,7 @@ func NewLogger(writer io.Writer, filePath ...string) *Logger {
 	}
 
 	// Determine log file path
-	logPath := "/var/log/sdeploy.log"
+	logPath := DefaultLogPath
 	if len(filePath) > 0 && filePath[0] != "" {
 		logPath = filePath[0]
 	}

@@ -126,7 +126,7 @@ func main() {
 func logConfigSummary(logger *Logger, cfg *Config) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
-	logger.Infof("", "  Log File: /var/log/sdeploy.log")
+	logger.Infof("", "  Log File: %s", DefaultLogPath)
 	if IsEmailConfigValid(cfg.EmailConfig) {
 		logger.Info("", "  Email Notifications: enabled")
 	} else {

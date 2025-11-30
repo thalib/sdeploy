@@ -10,6 +10,7 @@ import (
 // Default configuration values
 const (
 	DefaultListenPort = 8080
+	DefaultLogPath    = "/var/log/sdeploy.log"
 )
 
 // EmailConfig holds global email/SMTP configuration

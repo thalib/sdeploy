@@ -21,33 +21,24 @@ type Logger struct {
 // If writer is provided, logs go to that writer
 // If filePath is provided, logs go to file (appending mode)
 // If both are nil/empty, logs go to stdout
-func NewLogger(writer io.Writer, filePath string) *Logger {
+func NewLogger(writer io.Writer) *Logger {
+	const hardcodedLogPath = "/var/log/sdeploy.log"
 	l := &Logger{
-		filePath: filePath,
+		filePath: hardcodedLogPath,
 	}
 
-	if filePath != "" {
-		// Ensure parent directory exists before opening file
-		if err := ensureParentDir(filePath); err != nil {
-			// Fall back to stdout on error creating parent directory
-			l.writer = os.Stdout
-			return l
-		}
-		// Open file in append mode
-		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			// Fall back to stdout on error
-			l.writer = os.Stdout
-		} else {
-			l.file = file
-			l.writer = file
-		}
-	} else if writer != nil {
-		l.writer = writer
-	} else {
+	// Always use the hardcoded log file path
+	if err := ensureParentDir(hardcodedLogPath); err != nil {
 		l.writer = os.Stdout
+		return l
 	}
-
+	file, err := os.OpenFile(hardcodedLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		l.writer = os.Stdout
+	} else {
+		l.file = file
+		l.writer = file
+	}
 	return l
 }
 

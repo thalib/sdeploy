@@ -16,7 +16,7 @@ const (
 func main() {
 	// Parse command line flags
 	configPath := flag.String("c", "", "Path to config file")
-	daemonMode := flag.Bool("d", false, "Run as daemon (background service)")
+	// daemonMode flag removed, no longer needed for logging
 	showHelp := flag.Bool("h", false, "Show help")
 	flag.Parse()
 
@@ -40,13 +40,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize logger
+	// Initialize logger (always use hardcoded log file path)
 	var logger *Logger
-	if *daemonMode && cfg.LogFilepath != "" {
-		logger = NewLogger(nil, cfg.LogFilepath)
-	} else {
-		logger = NewLogger(os.Stdout, "")
-	}
+	logger = NewLogger(nil)
 	defer logger.Close()
 
 	logger.Infof("", "%s %s - Service started", ServiceName, Version)
@@ -130,9 +126,7 @@ func main() {
 func logConfigSummary(logger *Logger, cfg *Config) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
-	if cfg.LogFilepath != "" {
-		logger.Infof("", "  Log File: %s", cfg.LogFilepath)
-	}
+	logger.Infof("", "  Log File: /var/log/sdeploy.log")
 	if IsEmailConfigValid(cfg.EmailConfig) {
 		logger.Info("", "  Email Notifications: enabled")
 	} else {

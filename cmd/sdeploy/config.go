@@ -41,6 +41,7 @@ type ProjectConfig struct {
 // Config holds the complete SDeploy configuration
 type Config struct {
 	ListenPort  int             `yaml:"listen_port"`
+	LogFilepath string          `yaml:"log_filepath"`
 	EmailConfig *EmailConfig    `yaml:"email_config"`
 	Projects    []ProjectConfig `yaml:"projects"`
 }

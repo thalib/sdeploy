@@ -42,11 +42,7 @@ func main() {
 
 	// Initialize logger (use log_filepath from config, or default)
 	var logger *Logger
-	logPath := cfg.LogFilepath
-	if logPath == "" {
-		logPath = DefaultLogPath
-	}
-	logger = NewLogger(nil, logPath)
+	logger = NewLogger(nil, GetEffectiveLogPath(cfg))
 	defer logger.Close()
 
 	logger.Infof("", "%s %s - Service started", ServiceName, Version)
@@ -130,11 +126,7 @@ func main() {
 func logConfigSummary(logger *Logger, cfg *Config) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
-	logPath := cfg.LogFilepath
-	if logPath == "" {
-		logPath = DefaultLogPath
-	}
-	logger.Infof("", "  Log File: %s", logPath)
+	logger.Infof("", "  Log File: %s", GetEffectiveLogPath(cfg))
 	if IsEmailConfigValid(cfg.EmailConfig) {
 		logger.Info("", "  Email Notifications: enabled")
 	} else {

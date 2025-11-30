@@ -30,6 +30,21 @@ func runPreflightChecks(ctx context.Context, project *ProjectConfig, logger *Log
 		logger.Infof(project.Name, "***Using user: %s, group: %s", runAsUser, runAsGroup)
 	}
 
+	currentUser, err := user.Current()
+	if err != nil {
+		if logger != nil {
+			logger.Warnf(project.Name, "Unable to determine current process user: %v", err)
+		} else {
+			fmt.Printf("Unable to determine current process user: %v\n", err)
+		}
+	} else {
+		if logger != nil {
+			logger.Infof(project.Name, "Current process user: %s (UID: %s, GID: %s)", currentUser.Username, currentUser.Uid, currentUser.Gid)
+		} else {
+			fmt.Printf("Current process user: %s (UID: %s, GID: %s)\n", currentUser.Username, currentUser.Uid, currentUser.Gid)
+		}
+	}
+
 	// Get effective execute_path (default to local_path if not set)
 	effectiveExecutePath := getEffectiveExecutePath(project.LocalPath, project.ExecutePath)
 

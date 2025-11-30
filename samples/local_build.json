@@ -6,9 +6,8 @@
       "name": "Local Build",
       "webhook_path": "/hooks/local-build",
       "webhook_secret": "your_webhook_secret_here",
-      "git_repo": "https://github.com/devnodesin/sdeploy-test.git",
-      "local_path": "/home/mohamed/thalib/local-build",
-      "execute_path": "/home/mohamed/thalib/local-build",
+      "local_path": "/opt/sdeploy/local-build",
+      "execute_path": "/opt/sdeploy/local-build",
       "execute_command": "pwd"
     }
   ]

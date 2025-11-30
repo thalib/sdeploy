@@ -65,32 +65,29 @@ sudo systemctl enable sdeploy
 sudo systemctl start sdeploy
 ```
 
-## Automatic Directory Setup
 
-SDeploy automatically handles directory setup during deployment:
-
-- **Pre-flight Checks**: Before each deployment, SDeploy verifies that `local_path` and `execute_path` directories exist.
-- **Auto-Creation**: Missing directories are automatically created with correct permissions (0755).
-- **Ownership Management**: When running as root (e.g., via systemd), SDeploy sets directory ownership to the configured `run_as_user` and `run_as_group` (default: `www-data:www-data`).
-- **Path Defaults**: If `execute_path` is not specified, it defaults to `local_path`.
-
-This eliminates the need for manual directory setup before deployment.
 
 ### Example Scenario
 
 If your config specifies:
 ```json
 {
-  "local_path": "/var/repo/myproject",
-  "execute_path": "/var/www/myproject"
+  "listen_port": 8080,
+  "log_filepath": "/var/log/sdeploy/daemon.log",
+  "projects": [
+    {
+      "name": "SDeploy Test",
+      "webhook_path": "/shooks/sdeploy-test",
+      "webhook_secret": "your_webhook_secret_here",
+      "git_repo": "https://github.com/devnodesin/sdeploy-test.git",
+      "git_branch": "main",
+      "git_update": true,
+      "local_path": "/opt/sdeploy/sdeploy-test",
+      "execute_command": "sh build.sh"
+    }
+  ]
 }
 ```
-
-SDeploy will:
-1. Create `/var/repo/myproject` if it doesn't exist
-2. Create `/var/www/myproject` if it doesn't exist
-3. Set ownership to `www-data:www-data` (if running as root)
-4. Log all actions for transparency
 
 ## Verify
 

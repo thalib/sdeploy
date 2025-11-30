@@ -13,19 +13,16 @@ import (
 // TestConfigManagerCreation tests creating a ConfigManager
 func TestConfigManagerCreation(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	validConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "TestProject",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo test"
-			}
-		]
-	}`
+	validConfig := `
+listen_port: 8080
+projects:
+  - name: TestProject
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo test
+`
 
 	if err := os.WriteFile(configPath, []byte(validConfig), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -46,25 +43,20 @@ func TestConfigManagerCreation(t *testing.T) {
 // TestConfigManagerGetProject tests getting a project by webhook path
 func TestConfigManagerGetProject(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	validConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/frontend",
-				"webhook_secret": "secret1",
-				"execute_command": "echo frontend"
-			},
-			{
-				"name": "Backend",
-				"webhook_path": "/hooks/backend",
-				"webhook_secret": "secret2",
-				"execute_command": "echo backend"
-			}
-		]
-	}`
+	validConfig := `
+listen_port: 8080
+projects:
+  - name: Frontend
+    webhook_path: /hooks/frontend
+    webhook_secret: secret1
+    execute_command: echo frontend
+  - name: Backend
+    webhook_path: /hooks/backend
+    webhook_secret: secret2
+    execute_command: echo backend
+`
 
 	if err := os.WriteFile(configPath, []byte(validConfig), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -95,19 +87,16 @@ func TestConfigManagerGetProject(t *testing.T) {
 // TestConfigManagerHotReload tests hot reload functionality
 func TestConfigManagerHotReload(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	initialConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Initial",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo initial"
-			}
-		]
-	}`
+	initialConfig := `
+listen_port: 8080
+projects:
+  - name: Initial
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo initial
+`
 
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -133,17 +122,14 @@ func TestConfigManagerHotReload(t *testing.T) {
 	}
 
 	// Update config file
-	updatedConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Updated",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo updated"
-			}
-		]
-	}`
+	updatedConfig := `
+listen_port: 8080
+projects:
+  - name: Updated
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo updated
+`
 
 	if err := os.WriteFile(configPath, []byte(updatedConfig), 0644); err != nil {
 		t.Fatalf("Failed to update test config file: %v", err)
@@ -171,19 +157,16 @@ func TestConfigManagerHotReload(t *testing.T) {
 // TestConfigManagerInvalidReload tests that invalid config is rejected
 func TestConfigManagerInvalidReload(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	initialConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Initial",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo initial"
-			}
-		]
-	}`
+	initialConfig := `
+listen_port: 8080
+projects:
+  - name: Initial
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo initial
+`
 
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -201,8 +184,11 @@ func TestConfigManagerInvalidReload(t *testing.T) {
 		t.Fatalf("StartWatcher failed: %v", err)
 	}
 
-	// Write invalid JSON
-	invalidConfig := `{invalid json}`
+	// Write invalid YAML
+	invalidConfig := `listen_port: 8080
+projects:
+  - name: "unclosed string
+    webhook_path: /test`
 	if err := os.WriteFile(configPath, []byte(invalidConfig), 0644); err != nil {
 		t.Fatalf("Failed to write invalid config: %v", err)
 	}
@@ -226,19 +212,16 @@ func TestConfigManagerInvalidReload(t *testing.T) {
 // TestConfigManagerPortChangeWarning tests warning for listen_port change
 func TestConfigManagerPortChangeWarning(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	initialConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Test",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo test"
-			}
-		]
-	}`
+	initialConfig := `
+listen_port: 8080
+projects:
+  - name: Test
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo test
+`
 
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -257,17 +240,14 @@ func TestConfigManagerPortChangeWarning(t *testing.T) {
 	}
 
 	// Change listen_port
-	updatedConfig := `{
-		"listen_port": 9090,
-		"projects": [
-			{
-				"name": "Test",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo test"
-			}
-		]
-	}`
+	updatedConfig := `
+listen_port: 9090
+projects:
+  - name: Test
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo test
+`
 
 	if err := os.WriteFile(configPath, []byte(updatedConfig), 0644); err != nil {
 		t.Fatalf("Failed to update test config file: %v", err)
@@ -289,19 +269,16 @@ func TestConfigManagerPortChangeWarning(t *testing.T) {
 // TestConfigManagerReloadCallback tests the onReload callback
 func TestConfigManagerReloadCallback(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	initialConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Initial",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo initial"
-			}
-		]
-	}`
+	initialConfig := `
+listen_port: 8080
+projects:
+  - name: Initial
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo initial
+`
 
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -327,17 +304,14 @@ func TestConfigManagerReloadCallback(t *testing.T) {
 	}
 
 	// Update config file
-	updatedConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Callback Test",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo callback"
-			}
-		]
-	}`
+	updatedConfig := `
+listen_port: 8080
+projects:
+  - name: Callback Test
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo callback
+`
 
 	if err := os.WriteFile(configPath, []byte(updatedConfig), 0644); err != nil {
 		t.Fatalf("Failed to update test config file: %v", err)
@@ -360,19 +334,16 @@ func TestConfigManagerReloadCallback(t *testing.T) {
 // TestConfigManagerDeferredReload tests deferring reload during active builds
 func TestConfigManagerDeferredReload(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	initialConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Initial",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo initial"
-			}
-		]
-	}`
+	initialConfig := `
+listen_port: 8080
+projects:
+  - name: Initial
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo initial
+`
 
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -409,17 +380,14 @@ func TestConfigManagerDeferredReload(t *testing.T) {
 	cm.SetReloadPending(true)
 
 	// Write updated config
-	updatedConfig := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Deferred",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo deferred"
-			}
-		]
-	}`
+	updatedConfig := `
+listen_port: 8080
+projects:
+  - name: Deferred
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo deferred
+`
 
 	if err := os.WriteFile(configPath, []byte(updatedConfig), 0644); err != nil {
 		t.Fatalf("Failed to update test config file: %v", err)
@@ -444,20 +412,17 @@ func TestConfigManagerDeferredReload(t *testing.T) {
 // TestWebhookHandlerWithConfigManager tests webhook handler with hot reload
 func TestWebhookHandlerWithConfigManager(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	config := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "TestProject",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"git_branch": "main",
-				"execute_command": "echo test"
-			}
-		]
-	}`
+	config := `
+listen_port: 8080
+projects:
+  - name: TestProject
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    git_branch: main
+    execute_command: echo test
+`
 
 	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -490,19 +455,16 @@ func TestWebhookHandlerWithConfigManager(t *testing.T) {
 // TestDeployerWithConfigManager tests deployer integration with ConfigManager
 func TestDeployerWithConfigManager(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	config := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "TestProject",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo test"
-			}
-		]
-	}`
+	config := `
+listen_port: 8080
+projects:
+  - name: TestProject
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo test
+`
 
 	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -526,19 +488,16 @@ func TestDeployerWithConfigManager(t *testing.T) {
 // TestConfigManagerThreadSafety tests thread-safe access to config
 func TestConfigManagerThreadSafety(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	config := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "TestProject",
-				"webhook_path": "/hooks/test",
-				"webhook_secret": "secret123",
-				"execute_command": "echo test"
-			}
-		]
-	}`
+	config := `
+listen_port: 8080
+projects:
+  - name: TestProject
+    webhook_path: /hooks/test
+    webhook_secret: secret123
+    execute_command: echo test
+`
 
 	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)

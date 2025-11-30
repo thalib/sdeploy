@@ -1,43 +1,49 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Default configuration values
+const (
+	DefaultListenPort = 8080
 )
 
 // EmailConfig holds global email/SMTP configuration
 type EmailConfig struct {
-	SMTPHost    string `json:"smtp_host"`
-	SMTPPort    int    `json:"smtp_port"`
-	SMTPUser    string `json:"smtp_user"`
-	SMTPPass    string `json:"smtp_pass"`
-	EmailSender string `json:"email_sender"`
+	SMTPHost    string `yaml:"smtp_host"`
+	SMTPPort    int    `yaml:"smtp_port"`
+	SMTPUser    string `yaml:"smtp_user"`
+	SMTPPass    string `yaml:"smtp_pass"`
+	EmailSender string `yaml:"email_sender"`
 }
 
 // ProjectConfig holds configuration for a single project
 type ProjectConfig struct {
-	Name            string   `json:"name"`
-	WebhookPath     string   `json:"webhook_path"`
-	WebhookSecret   string   `json:"webhook_secret"`
-	GitRepo         string   `json:"git_repo"`
-	LocalPath       string   `json:"local_path"`
-	ExecutePath     string   `json:"execute_path"`
-	GitBranch       string   `json:"git_branch"`
-	ExecuteCommand  string   `json:"execute_command"`
-	GitUpdate       bool     `json:"git_update"`
-	TimeoutSeconds  int      `json:"timeout_seconds"`
-	EmailRecipients []string `json:"email_recipients"`
-	RunAsUser       string   `json:"run_as_user"`  // User to run commands as (default: www-data)
-	RunAsGroup      string   `json:"run_as_group"` // Group to run commands as (default: www-data)
+	Name            string   `yaml:"name"`
+	WebhookPath     string   `yaml:"webhook_path"`
+	WebhookSecret   string   `yaml:"webhook_secret"`
+	GitRepo         string   `yaml:"git_repo"`
+	LocalPath       string   `yaml:"local_path"`
+	ExecutePath     string   `yaml:"execute_path"`
+	GitBranch       string   `yaml:"git_branch"`
+	ExecuteCommand  string   `yaml:"execute_command"`
+	GitUpdate       bool     `yaml:"git_update"`
+	TimeoutSeconds  int      `yaml:"timeout_seconds"`
+	EmailRecipients []string `yaml:"email_recipients"`
+	RunAsUser       string   `yaml:"run_as_user"`  // User to run commands as (default: www-data)
+	RunAsGroup      string   `yaml:"run_as_group"` // Group to run commands as (default: www-data)
 }
 
 // Config holds the complete SDeploy configuration
 type Config struct {
-	ListenPort  int             `json:"listen_port"`
-	LogFilepath string          `json:"log_filepath"`
-	EmailConfig *EmailConfig    `json:"email_config"`
-	Projects    []ProjectConfig `json:"projects"`
+	ListenPort  int             `yaml:"listen_port"`
+	LogFilepath string          `yaml:"log_filepath"`
+	EmailConfig *EmailConfig    `yaml:"email_config"`
+	Projects    []ProjectConfig `yaml:"projects"`
 }
 
 // LoadConfig loads and validates a configuration from the specified file path
@@ -48,13 +54,13 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config JSON: %w", err)
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config YAML: %w", err)
 	}
 
-	// Set default listen port if not specified
+	// Set default listen port if not specified in config
 	if cfg.ListenPort == 0 {
-		cfg.ListenPort = 8080
+		cfg.ListenPort = DefaultListenPort
 	}
 
 	// Validate the configuration
@@ -104,8 +110,8 @@ func validateConfig(cfg *Config) error {
 
 // FindConfigFile finds a config file based on the search order:
 // 1. Explicit path from -c flag
-// 2. /etc/sdeploy/config.json
-// 3. ./config.json
+// 2. /etc/sdeploy.conf
+// 3. ./sdeploy.conf
 func FindConfigFile(explicitPath string) string {
 	// If explicit path is provided, use it
 	if explicitPath != "" {
@@ -117,8 +123,8 @@ func FindConfigFile(explicitPath string) string {
 
 	// Search order for config file
 	searchPaths := []string{
-		"/etc/sdeploy/config.json",
-		"./config.json",
+		"/etc/sdeploy.conf",
+		"./sdeploy.conf",
 	}
 
 	for _, path := range searchPaths {

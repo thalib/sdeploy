@@ -16,7 +16,7 @@ const (
 func main() {
 	// Parse command line flags
 	configPath := flag.String("c", "", "Path to config file")
-	daemonMode := flag.Bool("d", false, "Run as daemon (background service)")
+	// daemonMode flag removed, no longer needed for logging
 	showHelp := flag.Bool("h", false, "Show help")
 	flag.Parse()
 
@@ -29,7 +29,7 @@ func main() {
 	cfgPath := FindConfigFile(*configPath)
 	if cfgPath == "" {
 		fmt.Fprintln(os.Stderr, "Error: No config file found")
-		fmt.Fprintln(os.Stderr, "Searched: -c flag, /etc/sdeploy/config.json, ./config.json")
+		fmt.Fprintln(os.Stderr, "Searched: -c flag, /etc/sdeploy.conf, ./sdeploy.conf")
 		os.Exit(1)
 	}
 
@@ -40,13 +40,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize logger
+	// Initialize logger (always use hardcoded log file path)
 	var logger *Logger
-	if *daemonMode && cfg.LogFilepath != "" {
-		logger = NewLogger(nil, cfg.LogFilepath)
-	} else {
-		logger = NewLogger(os.Stdout, "")
-	}
+	logger = NewLogger(nil)
 	defer logger.Close()
 
 	logger.Infof("", "%s %s - Service started", ServiceName, Version)
@@ -130,9 +126,7 @@ func main() {
 func logConfigSummary(logger *Logger, cfg *Config) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
-	if cfg.LogFilepath != "" {
-		logger.Infof("", "  Log File: %s", cfg.LogFilepath)
-	}
+	logger.Infof("", "  Log File: /var/log/sdeploy.log")
 	if IsEmailConfigValid(cfg.EmailConfig) {
 		logger.Info("", "  Email Notifications: enabled")
 	} else {
@@ -182,17 +176,21 @@ func printUsage() {
 	fmt.Println("Usage: sdeploy [options]")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("  -c <path>  Path to config file")
+	fmt.Println("  -c <path>  Path to config file (YAML format)")
 	fmt.Println("  -d         Run as daemon (background service)")
 	fmt.Println("  -h         Show this help message")
 	fmt.Println()
 	fmt.Println("Config file search order:")
 	fmt.Println("  1. Path from -c flag")
-	fmt.Println("  2. /etc/sdeploy/config.json")
-	fmt.Println("  3. ./config.json")
+	fmt.Println("  2. /etc/sdeploy.conf")
+	fmt.Println("  3. ./sdeploy.conf")
+	fmt.Println()
+	fmt.Println("Sample configs:")
+	fmt.Println("  samples/sdeploy.conf      - Minimal quick-start")
+	fmt.Println("  samples/sdeploy-full.conf - Full reference with all options")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  sdeploy              # Run in console mode")
 	fmt.Println("  sdeploy -d           # Run as daemon")
-	fmt.Println("  sdeploy -c /path/to/config.json -d")
+	fmt.Println("  sdeploy -c /path/to/sdeploy.conf -d")
 }

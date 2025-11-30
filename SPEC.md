@@ -41,7 +41,7 @@ The compiled binary is named `sdeploy`.
 | Console      | `./sdeploy`       | Foreground, blocking. Output to stdout/stderr. Used for testing/setup.      |
 | Daemon       | `./sdeploy -d`    | Background service. Output to console/logger. For use with system services. |
 
-Custom config file path: `./sdeploy -c /home/user/my_project/custom_config.json -d`
+Custom config file path: `./sdeploy -c /home/user/my_project/sdeploy.conf -d`
 
 ## Project Folder Structure
 
@@ -100,53 +100,55 @@ sudo systemctl status sdeploy
 nohup /path/to/sdeploy -d > sdeploy.log 2>&1 &
 ```
 
-## ⚙️ Configuration (`config.json`)
+## ⚙️ Configuration (`sdeploy.conf`)
 
-SDeploy searches for its config file in order:
+SDeploy uses YAML format for configuration. It searches for config file in order:
 1. Path from `-c` flag
-2. `/etc/sdeploy/config.json`
-3. `./config.json`
+2. `/etc/sdeploy.conf`
+3. `./sdeploy.conf`
 
-### Sample Configuration
+### Sample Configuration Files
 
-```json
-{
-  "listen_port": 8080,
-  "log_filepath": "/var/log/sdeploy/daemon.log",
-  "email_config": {
-    "smtp_host": "smtp.sendgrid.net",
-    "smtp_port": 587,
-    "smtp_user": "apikey",
-    "smtp_pass": "SG.xxxxxxxxxxxx",
-    "email_sender": "sdeploy@yourdomain.com"
-  },
-  "projects": [
-    {
-      "name": "User-Facing Frontend",
-      "webhook_path": "/hooks/frontend",
-      "webhook_secret": "secret_token_for_frontend_repo",
-      "git_repo": "git@github.com:myorg/frontend-app.git",
-      "local_path": "/var/repo/frontend-repo",
-      "execute_path": "/var/www/site",
-      "git_branch": "main",
-      "execute_command": "sh /var/www/site/deploy.sh",
-      "git_update": true,
-      "email_recipients": ["frontend-team@domain.com", "on-call@domain.com"]
-    },
-    {
-      "name": "Backend REST API",
-      "webhook_path": "/hooks/api-service",
-      "webhook_secret": "api_prod_key_777",
-      "git_repo": "https://gitlab.com/api/backend-service.git",
-      "local_path": "/opt/repo/api-repo",
-      "execute_path": "/opt/services/api",
-      "git_branch": "staging",
-      "execute_command": "/usr/bin/supervisorctl restart api-service",
-      "git_update": false,
-      "email_recipients": ["api-team@domain.com"]
-    }
-  ]
-}
+- **[samples/sdeploy.conf](samples/sdeploy.conf)** — Minimal quick-start example
+- **[samples/sdeploy-full.conf](samples/sdeploy-full.conf)** — Full reference with all fields and comments
+
+### Sample Example
+
+```yaml
+listen_port: 8080
+
+email_config:
+  smtp_host: smtp.sendgrid.net
+  smtp_port: 587
+  smtp_user: apikey
+  smtp_pass: SG.xxxxxxxxxxxx
+  email_sender: sdeploy@yourdomain.com
+
+projects:
+  - name: User-Facing Frontend
+    webhook_path: /hooks/frontend
+    webhook_secret: secret_token_for_frontend_repo
+    git_repo: git@github.com:myorg/frontend-app.git
+    local_path: /var/repo/frontend-repo
+    execute_path: /var/www/site
+    git_branch: main
+    execute_command: sh /var/www/site/deploy.sh
+    git_update: true
+    email_recipients:
+      - frontend-team@domain.com
+      - on-call@domain.com
+
+  - name: Backend REST API
+    webhook_path: /hooks/api-service
+    webhook_secret: api_prod_key_777
+    git_repo: https://gitlab.com/api/backend-service.git
+    local_path: /opt/repo/api-repo
+    execute_path: /opt/services/api
+    git_branch: staging
+    execute_command: /usr/bin/supervisorctl restart api-service
+    git_update: false
+    email_recipients:
+      - api-team@domain.com
 ```
 
 ### Global Email Configuration
@@ -264,7 +266,7 @@ SDeploy supports hot reloading of the configuration file. When the config file i
 | Error Type            | Handling                                                                 |
 |-----------------------|--------------------------------------------------------------------------|
 | File Read Error       | Log error, keep current configuration                                    |
-| JSON Parse Error      | Log error with details, keep current configuration                       |
+| YAML Parse Error      | Log error with details, keep current configuration                       |
 | Validation Error      | Log error with details, keep current configuration                       |
 | File Watcher Error    | Log error, attempt to re-establish watcher                               |
 

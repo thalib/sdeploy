@@ -21,10 +21,10 @@ A lightweight, Go-based daemon that automates deployments via webhooks.
 go build -o sdeploy ./cmd/sdeploy
 
 # Run (console mode)
-./sdeploy -c config.json
+./sdeploy -c sdeploy.conf
 
 # Run (daemon mode)
-./sdeploy -c config.json -d
+./sdeploy -c sdeploy.conf -d
 ```
 
 See [INSTALL.md](INSTALL.md) for detailed build, test, and deployment instructions.
@@ -35,19 +35,22 @@ See [INSTALL.md](INSTALL.md) for detailed build, test, and deployment instructio
 sdeploy [options]
 
 Options:
-  -c <path>  Path to config file
+  -c <path>  Path to config file (YAML format)
   -d         Run as daemon (background service)
   -h         Show help
 ```
 
 Config file search order:
 1. Path from `-c` flag
-2. `/etc/sdeploy/config.json`
-3. `./config.json`
+2. `/etc/sdeploy.conf`
+3. `./sdeploy.conf`
 
 ## Configuration
 
-See [samples/config.json](samples/config.json) for a complete example.
+SDeploy uses YAML format for configuration:
+
+- **[samples/sdeploy.conf](samples/sdeploy.conf)** — Minimal quick-start example
+- **[samples/sdeploy-full.conf](samples/sdeploy-full.conf)** — Full reference with all fields documented
 
 | Key             | Description                              |
 |-----------------|------------------------------------------|
@@ -125,7 +128,7 @@ If a deployment is in progress when the config file changes:
 ### Example Log Output
 
 ```
-[INFO] Hot reload enabled for config file: /etc/sdeploy/config.json
+[INFO] Hot reload enabled for config file: /etc/sdeploy.conf
 [INFO] Reloading configuration...
 [INFO] Configuration reloaded successfully
 ```

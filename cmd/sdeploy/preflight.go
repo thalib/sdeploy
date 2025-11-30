@@ -26,6 +26,9 @@ func runPreflightChecks(ctx context.Context, project *ProjectConfig, logger *Log
 
 	// Get effective user/group for ownership
 	runAsUser, runAsGroup := getEffectiveRunAs(project)
+	if logger != nil {
+		logger.Infof(project.Name, "***Using user: %s, group: %s", runAsUser, runAsGroup)
+	}
 
 	// Get effective execute_path (default to local_path if not set)
 	effectiveExecutePath := getEffectiveExecutePath(project.LocalPath, project.ExecutePath)

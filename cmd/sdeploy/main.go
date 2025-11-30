@@ -40,9 +40,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize logger (always use hardcoded log file path)
+	// Initialize logger (use log_filepath from config, or default)
 	var logger *Logger
-	logger = NewLogger(nil)
+	logPath := cfg.LogFilepath
+	if logPath == "" {
+		logPath = DefaultLogPath
+	}
+	logger = NewLogger(nil, logPath)
 	defer logger.Close()
 
 	logger.Infof("", "%s %s - Service started", ServiceName, Version)
@@ -126,7 +130,11 @@ func main() {
 func logConfigSummary(logger *Logger, cfg *Config) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
-	logger.Infof("", "  Log File: /var/log/sdeploy.log")
+	logPath := cfg.LogFilepath
+	if logPath == "" {
+		logPath = DefaultLogPath
+	}
+	logger.Infof("", "  Log File: %s", logPath)
 	if IsEmailConfigValid(cfg.EmailConfig) {
 		logger.Info("", "  Email Notifications: enabled")
 	} else {

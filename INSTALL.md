@@ -99,6 +99,6 @@ SDeploy will:
 sudo systemctl status sdeploy
 
 # Test webhook
-curl -X POST "http://localhost:8080/hooks/sdeploy-test?secret=your_webhook_secret_here" \
+curl -X POST "http://localhost:8080/shooks/sdeploy-test?secret=your_webhook_secret_here" \
   -d '{"ref":"refs/heads/main"}'
 ```

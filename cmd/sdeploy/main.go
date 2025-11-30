@@ -54,7 +54,7 @@ func main() {
 	logger.Infof("", "%s %s - Service started", ServiceName, Version)
 
 	// Log configuration summary
-	logConfigSummary(logger, cfg)
+	logConfigSummary(logger, cfg, *daemonMode)
 
 	// Create ConfigManager for hot reload
 	configManager, err := NewConfigManager(cfgPath, logger)
@@ -129,10 +129,14 @@ func main() {
 }
 
 // logConfigSummary logs all configuration settings on startup
-func logConfigSummary(logger *Logger, cfg *Config) {
+func logConfigSummary(logger *Logger, cfg *Config, daemonMode bool) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
-	logger.Infof("", "  Log File: %s", DefaultLogPath)
+	if daemonMode {
+		logger.Infof("", "  Log File: %s", DefaultLogPath)
+	} else {
+		logger.Info("", "  Log Output: console (stderr)")
+	}
 	if IsEmailConfigValid(cfg.EmailConfig) {
 		logger.Info("", "  Email Notifications: enabled")
 	} else {

@@ -45,6 +45,11 @@ docker run --rm -v "$(pwd):/app" -w /app golang:latest \
 
 ```sh
 sudo cp sdeploy /usr/local/bin/
+
+# Mk dir
+sudo mkdir -pv /opt/sdeploy
+sudo chown -R www-data:www-data /opt/sdeploy/
+
 ```
 
 2. Create config:
@@ -65,11 +70,13 @@ sudo cp samples/sdeploy.service /etc/systemd/system/sdeploy.service
 # Register and Enable Service
 sudo systemctl daemon-reload
 sudo systemctl enable sdeploy
-
+```
+```sh
 # Start/stop service
 sudo systemctl start sdeploy
 sudo systemctl stop sdeploy
-
+```
+```sh
 # Check status
 sudo systemctl status sdeploy
 ```
@@ -77,9 +84,6 @@ sudo systemctl status sdeploy
 ## Verify
 
 ```sh
-# Check status
-sudo systemctl status sdeploy
-
 # Test webhook
 curl -X POST "http://localhost:8080/hooks/sdeploy-test?secret=your_webhook_secret_here" \
   -d '{"ref":"refs/heads/main"}'

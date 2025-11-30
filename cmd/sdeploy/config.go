@@ -6,6 +6,11 @@ import (
 	"os"
 )
 
+// Default configuration values
+const (
+	DefaultListenPort = 8080
+)
+
 // EmailConfig holds global email/SMTP configuration
 type EmailConfig struct {
 	SMTPHost    string `json:"smtp_host"`
@@ -52,9 +57,9 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config JSON: %w", err)
 	}
 
-	// Set default listen port if not specified
+	// Set default listen port if not specified in config
 	if cfg.ListenPort == 0 {
-		cfg.ListenPort = 8080
+		cfg.ListenPort = DefaultListenPort
 	}
 
 	// Validate the configuration

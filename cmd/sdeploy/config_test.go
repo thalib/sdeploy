@@ -187,8 +187,8 @@ func TestLoadConfigDefaultPort(t *testing.T) {
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
 
-	if cfg.ListenPort != 8080 {
-		t.Errorf("Expected default ListenPort 8080, got %d", cfg.ListenPort)
+	if cfg.ListenPort != DefaultListenPort {
+		t.Errorf("Expected default ListenPort %d, got %d", DefaultListenPort, cfg.ListenPort)
 	}
 }
 

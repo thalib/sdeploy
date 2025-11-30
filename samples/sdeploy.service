@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
+# Config file is read from /etc/sdeploy.conf by default
 ExecStart=/usr/local/bin/sdeploy -d
 Restart=always
 User=www-data

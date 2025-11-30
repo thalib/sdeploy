@@ -6,37 +6,34 @@ import (
 	"testing"
 )
 
-// TestLoadConfigValidFile tests loading a valid JSON config file
+// TestLoadConfigValidFile tests loading a valid YAML config file
 func TestLoadConfigValidFile(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	validConfig := `{
-		"listen_port": 8080,
-		"log_filepath": "/var/log/sdeploy/daemon.log",
-		"email_config": {
-			"smtp_host": "smtp.sendgrid.net",
-			"smtp_port": 587,
-			"smtp_user": "apikey",
-			"smtp_pass": "SG.xxxxxxxxxxxx",
-			"email_sender": "sdeploy@example.com"
-		},
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/frontend",
-				"webhook_secret": "secret_token_123",
-				"git_repo": "git@github.com:myorg/frontend.git",
-				"local_path": "/var/repo/frontend",
-				"execute_path": "/var/www/site",
-				"git_branch": "main",
-				"execute_command": "sh /var/www/site/deploy.sh",
-				"git_update": true,
-				"email_recipients": ["team@example.com"]
-			}
-		]
-	}`
+	validConfig := `
+listen_port: 8080
+log_filepath: /var/log/sdeploy/daemon.log
+email_config:
+  smtp_host: smtp.sendgrid.net
+  smtp_port: 587
+  smtp_user: apikey
+  smtp_pass: SG.xxxxxxxxxxxx
+  email_sender: sdeploy@example.com
+projects:
+  - name: Frontend
+    webhook_path: /hooks/frontend
+    webhook_secret: secret_token_123
+    git_repo: git@github.com:myorg/frontend.git
+    local_path: /var/repo/frontend
+    execute_path: /var/www/site
+    git_branch: main
+    execute_command: sh /var/www/site/deploy.sh
+    git_update: true
+    email_recipients:
+      - team@example.com
+`
 
 	err := os.WriteFile(configPath, []byte(validConfig), 0644)
 	if err != nil {
@@ -71,46 +68,46 @@ func TestLoadConfigValidFile(t *testing.T) {
 
 // TestLoadConfigMissingFile tests error handling for missing config file
 func TestLoadConfigMissingFile(t *testing.T) {
-	_, err := LoadConfig("/nonexistent/path/config.json")
+	_, err := LoadConfig("/nonexistent/path/sdeploy.conf")
 	if err == nil {
 		t.Error("Expected error for missing config file, got nil")
 	}
 }
 
-// TestLoadConfigInvalidJSON tests error handling for invalid JSON
-func TestLoadConfigInvalidJSON(t *testing.T) {
+// TestLoadConfigInvalidYAML tests error handling for invalid YAML
+func TestLoadConfigInvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	invalidJSON := `{invalid json`
-	err := os.WriteFile(configPath, []byte(invalidJSON), 0644)
+	invalidYAML := `listen_port: 8080
+projects:
+  - name: "unclosed string
+    webhook_path: /hooks/test`
+	err := os.WriteFile(configPath, []byte(invalidYAML), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
 
 	_, err = LoadConfig(configPath)
 	if err == nil {
-		t.Error("Expected error for invalid JSON, got nil")
+		t.Error("Expected error for invalid YAML, got nil")
 	}
 }
 
 // TestLoadConfigMissingRequiredFields tests validation of required fields
 func TestLoadConfigMissingRequiredFields(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
 	// Config missing webhook_secret
-	configMissingSecret := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/frontend",
-				"git_branch": "main",
-				"execute_command": "sh deploy.sh"
-			}
-		]
-	}`
+	configMissingSecret := `
+listen_port: 8080
+projects:
+  - name: Frontend
+    webhook_path: /hooks/frontend
+    git_branch: main
+    execute_command: sh deploy.sh
+`
 
 	err := os.WriteFile(configPath, []byte(configMissingSecret), 0644)
 	if err != nil {
@@ -126,27 +123,22 @@ func TestLoadConfigMissingRequiredFields(t *testing.T) {
 // TestLoadConfigDuplicateWebhookPath tests validation for unique webhook_path
 func TestLoadConfigDuplicateWebhookPath(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
-	configDuplicatePath := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/myapp",
-				"webhook_secret": "secret1",
-				"git_branch": "main",
-				"execute_command": "sh deploy1.sh"
-			},
-			{
-				"name": "Backend",
-				"webhook_path": "/hooks/myapp",
-				"webhook_secret": "secret2",
-				"git_branch": "main",
-				"execute_command": "sh deploy2.sh"
-			}
-		]
-	}`
+	configDuplicatePath := `
+listen_port: 8080
+projects:
+  - name: Frontend
+    webhook_path: /hooks/myapp
+    webhook_secret: secret1
+    git_branch: main
+    execute_command: sh deploy1.sh
+  - name: Backend
+    webhook_path: /hooks/myapp
+    webhook_secret: secret2
+    git_branch: main
+    execute_command: sh deploy2.sh
+`
 
 	err := os.WriteFile(configPath, []byte(configDuplicatePath), 0644)
 	if err != nil {
@@ -162,20 +154,17 @@ func TestLoadConfigDuplicateWebhookPath(t *testing.T) {
 // TestLoadConfigDefaultPort tests default listen port
 func TestLoadConfigDefaultPort(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
 	// Config without listen_port (should default to 8080)
-	configNoPort := `{
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/frontend",
-				"webhook_secret": "secret_token_123",
-				"git_branch": "main",
-				"execute_command": "sh deploy.sh"
-			}
-		]
-	}`
+	configNoPort := `
+projects:
+  - name: Frontend
+    webhook_path: /hooks/frontend
+    webhook_secret: secret_token_123
+    git_branch: main
+    execute_command: sh deploy.sh
+`
 
 	err := os.WriteFile(configPath, []byte(configNoPort), 0644)
 	if err != nil {
@@ -197,8 +186,8 @@ func TestFindConfigFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Test 1: Explicit path provided
-	explicitPath := filepath.Join(tmpDir, "explicit_config.json")
-	err := os.WriteFile(explicitPath, []byte(`{"projects":[]}`), 0644)
+	explicitPath := filepath.Join(tmpDir, "explicit_config.conf")
+	err := os.WriteFile(explicitPath, []byte("projects: []"), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
@@ -209,38 +198,37 @@ func TestFindConfigFile(t *testing.T) {
 	}
 
 	// Test 2: Empty path falls back to search order
-	// This test would need to check /etc/sdeploy/config.json and ./config.json
+	// This test would need to check /etc/sdeploy.conf and ./sdeploy.conf
 	// For unit testing, we'll just verify it returns empty if nothing found
 	found = FindConfigFile("")
-	// If we're running tests from a directory without config.json, this should be empty
-	// or point to an existing config.json - we just verify it doesn't panic
+	// If we're running tests from a directory without sdeploy.conf, this should be empty
+	// or point to an existing sdeploy.conf - we just verify it doesn't panic
 	_ = found
 }
 
 // TestProjectConfigOptionalFields tests optional fields in project config
 func TestProjectConfigOptionalFields(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
 	// Config with all optional fields
-	configWithOptional := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/frontend",
-				"webhook_secret": "secret_token_123",
-				"git_repo": "git@github.com:myorg/frontend.git",
-				"local_path": "/var/repo/frontend",
-				"execute_path": "/var/www/site",
-				"git_branch": "main",
-				"execute_command": "sh deploy.sh",
-				"git_update": true,
-				"timeout_seconds": 300,
-				"email_recipients": ["team@example.com", "admin@example.com"]
-			}
-		]
-	}`
+	configWithOptional := `
+listen_port: 8080
+projects:
+  - name: Frontend
+    webhook_path: /hooks/frontend
+    webhook_secret: secret_token_123
+    git_repo: git@github.com:myorg/frontend.git
+    local_path: /var/repo/frontend
+    execute_path: /var/www/site
+    git_branch: main
+    execute_command: sh deploy.sh
+    git_update: true
+    timeout_seconds: 300
+    email_recipients:
+      - team@example.com
+      - admin@example.com
+`
 
 	err := os.WriteFile(configPath, []byte(configWithOptional), 0644)
 	if err != nil {
@@ -359,20 +347,17 @@ func TestIsEmailConfigValid(t *testing.T) {
 // TestDefaultGitBranch tests that git_branch defaults to "main" when empty
 func TestDefaultGitBranch(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
 	// Config without git_branch
-	configNoGitBranch := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/frontend",
-				"webhook_secret": "secret_token_123",
-				"execute_command": "sh deploy.sh"
-			}
-		]
-	}`
+	configNoGitBranch := `
+listen_port: 8080
+projects:
+  - name: Frontend
+    webhook_path: /hooks/frontend
+    webhook_secret: secret_token_123
+    execute_command: sh deploy.sh
+`
 
 	err := os.WriteFile(configPath, []byte(configNoGitBranch), 0644)
 	if err != nil {
@@ -392,21 +377,18 @@ func TestDefaultGitBranch(t *testing.T) {
 // TestGitBranchNotOverwritten tests that a set git_branch is not overwritten
 func TestGitBranchNotOverwritten(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
+	configPath := filepath.Join(tmpDir, "sdeploy.conf")
 
 	// Config with explicit git_branch
-	configWithGitBranch := `{
-		"listen_port": 8080,
-		"projects": [
-			{
-				"name": "Frontend",
-				"webhook_path": "/hooks/frontend",
-				"webhook_secret": "secret_token_123",
-				"git_branch": "develop",
-				"execute_command": "sh deploy.sh"
-			}
-		]
-	}`
+	configWithGitBranch := `
+listen_port: 8080
+projects:
+  - name: Frontend
+    webhook_path: /hooks/frontend
+    webhook_secret: secret_token_123
+    git_branch: develop
+    execute_command: sh deploy.sh
+`
 
 	err := os.WriteFile(configPath, []byte(configWithGitBranch), 0644)
 	if err != nil {

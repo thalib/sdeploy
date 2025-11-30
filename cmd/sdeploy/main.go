@@ -29,7 +29,7 @@ func main() {
 	cfgPath := FindConfigFile(*configPath)
 	if cfgPath == "" {
 		fmt.Fprintln(os.Stderr, "Error: No config file found")
-		fmt.Fprintln(os.Stderr, "Searched: -c flag, /etc/sdeploy/config.json, ./config.json")
+		fmt.Fprintln(os.Stderr, "Searched: -c flag, /etc/sdeploy.conf, ./sdeploy.conf")
 		os.Exit(1)
 	}
 
@@ -176,17 +176,17 @@ func printUsage() {
 	fmt.Println("Usage: sdeploy [options]")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("  -c <path>  Path to config file")
+	fmt.Println("  -c <path>  Path to config file (YAML format)")
 	fmt.Println("  -d         Run as daemon (background service)")
 	fmt.Println("  -h         Show this help message")
 	fmt.Println()
 	fmt.Println("Config file search order:")
 	fmt.Println("  1. Path from -c flag")
-	fmt.Println("  2. /etc/sdeploy/config.json")
-	fmt.Println("  3. ./config.json")
+	fmt.Println("  2. /etc/sdeploy.conf")
+	fmt.Println("  3. ./sdeploy.conf")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  sdeploy              # Run in console mode")
 	fmt.Println("  sdeploy -d           # Run as daemon")
-	fmt.Println("  sdeploy -c /path/to/config.json -d")
+	fmt.Println("  sdeploy -c /path/to/sdeploy.conf -d")
 }

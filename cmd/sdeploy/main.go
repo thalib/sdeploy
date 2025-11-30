@@ -16,7 +16,7 @@ const (
 func main() {
 	// Parse command line flags
 	configPath := flag.String("c", "", "Path to config file")
-	// daemonMode flag removed, no longer needed for logging
+	daemonMode := flag.Bool("d", false, "Run as daemon (background service)")
 	showHelp := flag.Bool("h", false, "Show help")
 	flag.Parse()
 
@@ -40,18 +40,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize logger (always use hardcoded log file path)
+	// Initialize logger based on daemon mode
 	var logger *Logger
-	logger = NewLogger(nil)
+	if *daemonMode {
+		// Daemon mode: log to file
+		logger = NewLogger(nil)
+	} else {
+		// Console mode: log to stdout
+		logger = NewLogger(os.Stdout)
+	}
 	defer logger.Close()
 
 	logger.Infof("", "%s %s - Service started", ServiceName, Version)
 
 	// Log configuration summary
-	logConfigSummary(logger, cfg)
+	logConfigSummary(logger, cfg, *daemonMode)
 
 	// Create ConfigManager for hot reload
-	configManager, err := NewConfigManager(cfgPath, logger)
+	configManager, err := NewConfigManager(cfgPath, logger, *daemonMode)
 	if err != nil {
 		logger.Errorf("", "Failed to create config manager: %v", err)
 		os.Exit(1)
@@ -123,10 +129,14 @@ func main() {
 }
 
 // logConfigSummary logs all configuration settings on startup
-func logConfigSummary(logger *Logger, cfg *Config) {
+func logConfigSummary(logger *Logger, cfg *Config, daemonMode bool) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
-	logger.Infof("", "  Log File: /var/log/sdeploy.log")
+	if daemonMode {
+		logger.Infof("", "  Log File: /var/log/sdeploy.log")
+	} else {
+		logger.Info("", "  Log Output: stdout (console mode)")
+	}
 	if IsEmailConfigValid(cfg.EmailConfig) {
 		logger.Info("", "  Email Notifications: enabled")
 	} else {

@@ -989,7 +989,7 @@ func TestDeferredReloadNotTriggeredByWebhook(t *testing.T) {
 
 	var buf bytes.Buffer
 	logger := NewLogger(&buf, "")
-	cm, err := NewConfigManager(configPath, logger)
+	cm, err := NewConfigManager(configPath, logger, false)
 	if err != nil {
 		t.Fatalf("NewConfigManager failed: %v", err)
 	}

@@ -17,13 +17,14 @@ type ConfigManager struct {
 	watcher       *fsnotify.Watcher
 	stopChan      chan struct{}
 	reloadPending atomic.Bool
+	daemonMode    bool
 
 	// Callback functions for notifying dependent components
 	onReload func(*Config)
 }
 
 // NewConfigManager creates a new ConfigManager with hot reload support
-func NewConfigManager(configPath string, logger *Logger) (*ConfigManager, error) {
+func NewConfigManager(configPath string, logger *Logger, daemonMode bool) (*ConfigManager, error) {
 	cfg, err := LoadConfig(configPath)
 	if err != nil {
 		return nil, err
@@ -34,6 +35,7 @@ func NewConfigManager(configPath string, logger *Logger) (*ConfigManager, error)
 		configPath: configPath,
 		logger:     logger,
 		stopChan:   make(chan struct{}),
+		daemonMode: daemonMode,
 	}
 
 	return cm, nil
@@ -169,7 +171,7 @@ func (cm *ConfigManager) reloadConfig() {
 
 	if cm.logger != nil {
 		cm.logger.Info("", "Configuration reloaded successfully")
-		logConfigSummary(cm.logger, newConfig)
+		logConfigSummary(cm.logger, newConfig, cm.daemonMode)
 	}
 
 	// Notify dependent components

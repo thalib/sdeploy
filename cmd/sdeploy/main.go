@@ -133,7 +133,7 @@ func logConfigSummary(logger *Logger, cfg *Config, daemonMode bool) {
 	logger.Info("", "Configuration loaded:")
 	logger.Infof("", "  Listen Port: %d", cfg.ListenPort)
 	if daemonMode {
-		logger.Infof("", "  Log File: %s", DefaultLogPath)
+		logger.Infof("", "  Log File: %s", Defaults.LogPath)
 	} else {
 		logger.Info("", "  Log Output: console (stderr)")
 	}
@@ -165,11 +165,11 @@ func logConfigSummary(logger *Logger, cfg *Config, daemonMode bool) {
 		// Show run as user/group if configured
 		runAsUser := project.RunAsUser
 		if runAsUser == "" {
-			runAsUser = "www-data"
+			runAsUser = Defaults.RunAsUser
 		}
 		runAsGroup := project.RunAsGroup
 		if runAsGroup == "" {
-			runAsGroup = "www-data"
+			runAsGroup = Defaults.RunAsGroup
 		}
 		logger.Infof("", "  - Run As: %s:%s", runAsUser, runAsGroup)
 		if project.TimeoutSeconds > 0 {

@@ -176,8 +176,8 @@ projects:
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
 
-	if cfg.ListenPort != DefaultListenPort {
-		t.Errorf("Expected default ListenPort %d, got %d", DefaultListenPort, cfg.ListenPort)
+	if cfg.ListenPort != Defaults.Port {
+		t.Errorf("Expected default ListenPort %d, got %d", Defaults.Port, cfg.ListenPort)
 	}
 }
 
@@ -344,7 +344,7 @@ func TestIsEmailConfigValid(t *testing.T) {
 	}
 }
 
-// TestDefaultGitBranch tests that git_branch defaults to "main" when empty
+// TestDefaultGitBranch tests that git_branch defaults to Defaults.GitBranch when empty
 func TestDefaultGitBranch(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "sdeploy.conf")
@@ -369,8 +369,8 @@ projects:
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
 
-	if cfg.Projects[0].GitBranch != "main" {
-		t.Errorf("Expected default GitBranch 'main', got '%s'", cfg.Projects[0].GitBranch)
+	if cfg.Projects[0].GitBranch != Defaults.GitBranch {
+		t.Errorf("Expected default GitBranch '%s', got '%s'", Defaults.GitBranch, cfg.Projects[0].GitBranch)
 	}
 }
 

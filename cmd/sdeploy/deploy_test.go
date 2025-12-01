@@ -705,11 +705,11 @@ func TestDefaultRunAsUserGroup(t *testing.T) {
 // TestBuildCommandFunction tests buildCommand function exists and works
 func TestBuildCommandFunction(t *testing.T) {
 	ctx := context.Background()
-	cmd, warning := buildCommand(ctx, "echo test", "www-data", "www-data")
+	cmd, warning := buildCommand(ctx, "echo test", Defaults.RunAsUser, Defaults.RunAsGroup)
 	if cmd == nil {
 		t.Error("Expected buildCommand to return a non-nil command")
 	}
-	// Warning may or may not be empty depending on whether www-data exists
+	// Warning may or may not be empty depending on whether Defaults.RunAsUser exists
 	// and whether running as root - we just verify it doesn't panic
 	_ = warning
 }
@@ -752,7 +752,7 @@ func TestGitPullRunAsLogging(t *testing.T) {
 	}
 }
 
-// TestGitPullDefaultRunAs tests that git pull uses default www-data:www-data when not configured
+// TestGitPullDefaultRunAs tests that git pull uses default Defaults.RunAsUser:Defaults.RunAsGroup when not configured
 func TestGitPullDefaultRunAs(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -775,7 +775,7 @@ func TestGitPullDefaultRunAs(t *testing.T) {
 		GitUpdate:      true, // Enable git pull
 		ExecutePath:    tmpDir,
 		ExecuteCommand: "echo done",
-		// RunAsUser and RunAsGroup are not set, should default to www-data:www-data
+		// RunAsUser and RunAsGroup are not set, should default to Defaults.RunAsUser:Defaults.RunAsGroup
 	}
 
 	// Deploy will fail on git pull (not a real git repo), but we can verify the logging
@@ -783,25 +783,26 @@ func TestGitPullDefaultRunAs(t *testing.T) {
 
 	logOutput := buf.String()
 
-	// Should see default "Run As: www-data:www-data" logging for git pull
-	if !strings.Contains(logOutput, "Run As: www-data:www-data") {
-		t.Errorf("Expected log message 'Run As: www-data:www-data' for git pull (default), got: %s", logOutput)
+	// Should see default "Run As: Defaults.RunAsUser:Defaults.RunAsGroup" logging for git pull
+	expectedRunAs := "Run As: " + Defaults.RunAsUser + ":" + Defaults.RunAsGroup
+	if !strings.Contains(logOutput, expectedRunAs) {
+		t.Errorf("Expected log message '%s' for git pull (default), got: %s", expectedRunAs, logOutput)
 	}
 }
 
 // TestGetEffectiveRunAs tests the getEffectiveRunAs helper function
 func TestGetEffectiveRunAs(t *testing.T) {
 	tests := []struct {
-		name       string
-		project    *ProjectConfig
-		wantUser   string
-		wantGroup  string
+		name      string
+		project   *ProjectConfig
+		wantUser  string
+		wantGroup string
 	}{
 		{
 			name:      "default when not set",
 			project:   &ProjectConfig{},
-			wantUser:  "www-data",
-			wantGroup: "www-data",
+			wantUser:  Defaults.RunAsUser,
+			wantGroup: Defaults.RunAsGroup,
 		},
 		{
 			name:      "custom user and group",
@@ -813,12 +814,12 @@ func TestGetEffectiveRunAs(t *testing.T) {
 			name:      "custom user only",
 			project:   &ProjectConfig{RunAsUser: "deploy"},
 			wantUser:  "deploy",
-			wantGroup: "www-data",
+			wantGroup: Defaults.RunAsGroup,
 		},
 		{
 			name:      "custom group only",
 			project:   &ProjectConfig{RunAsGroup: "staff"},
-			wantUser:  "www-data",
+			wantUser:  Defaults.RunAsUser,
 			wantGroup: "staff",
 		},
 	}
@@ -839,7 +840,7 @@ func TestGetEffectiveRunAs(t *testing.T) {
 // TestSetProcessGroupPreservesCredentials tests that setProcessGroup preserves existing SysProcAttr
 func TestSetProcessGroupPreservesCredentials(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Create a command with SysProcAttr already set (simulating buildCommand with credentials)
 	cmd := exec.CommandContext(ctx, "echo", "test")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -848,15 +849,15 @@ func TestSetProcessGroupPreservesCredentials(t *testing.T) {
 			Gid: 1000,
 		},
 	}
-	
+
 	// Call setProcessGroup - it should preserve the credential
 	setProcessGroup(cmd)
-	
+
 	// Verify Setpgid was set
 	if !cmd.SysProcAttr.Setpgid {
 		t.Error("Expected Setpgid to be true")
 	}
-	
+
 	// Verify Credential was preserved
 	if cmd.SysProcAttr.Credential == nil {
 		t.Fatal("Expected Credential to be preserved, but it was nil")
@@ -872,13 +873,13 @@ func TestSetProcessGroupPreservesCredentials(t *testing.T) {
 // TestSetProcessGroupWithNilSysProcAttr tests setProcessGroup when SysProcAttr is nil
 func TestSetProcessGroupWithNilSysProcAttr(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Create a command without SysProcAttr
 	cmd := exec.CommandContext(ctx, "echo", "test")
-	
+
 	// Call setProcessGroup
 	setProcessGroup(cmd)
-	
+
 	// Verify SysProcAttr was created with Setpgid
 	if cmd.SysProcAttr == nil {
 		t.Error("Expected SysProcAttr to be created")
@@ -895,7 +896,7 @@ func TestEnsureParentDirExists(t *testing.T) {
 	t.Run("parent dir already exists", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		parentDir := tmpDir // Parent already exists
-		err := ensureParentDirExists(ctx, parentDir, "www-data", "www-data", nil, "TestProject")
+		err := ensureParentDirExists(ctx, parentDir, Defaults.RunAsUser, Defaults.RunAsGroup, nil, "TestProject")
 		if err != nil {
 			t.Errorf("Expected no error when parent dir exists, got: %v", err)
 		}
@@ -907,7 +908,7 @@ func TestEnsureParentDirExists(t *testing.T) {
 		var buf bytes.Buffer
 		logger := NewLogger(&buf, "", false)
 
-		err := ensureParentDirExists(ctx, parentDir, "www-data", "www-data", logger, "TestProject")
+		err := ensureParentDirExists(ctx, parentDir, Defaults.RunAsUser, Defaults.RunAsGroup, logger, "TestProject")
 		if err != nil {
 			t.Errorf("Expected no error creating parent dir, got: %v", err)
 		}
@@ -932,7 +933,7 @@ func TestEnsureParentDirExists(t *testing.T) {
 		tmpDir := t.TempDir()
 		parentDir := filepath.Join(tmpDir, "level1", "level2", "level3")
 
-		err := ensureParentDirExists(ctx, parentDir, "www-data", "www-data", nil, "TestProject")
+		err := ensureParentDirExists(ctx, parentDir, Defaults.RunAsUser, Defaults.RunAsGroup, nil, "TestProject")
 		if err != nil {
 			t.Errorf("Expected no error creating nested parent dirs, got: %v", err)
 		}
@@ -956,7 +957,7 @@ func TestEnsureParentDirExists(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		err := ensureParentDirExists(ctx, filePath, "www-data", "www-data", nil, "TestProject")
+		err := ensureParentDirExists(ctx, filePath, Defaults.RunAsUser, Defaults.RunAsGroup, nil, "TestProject")
 		if err == nil {
 			t.Error("Expected error when path is an existing file, got nil")
 		}

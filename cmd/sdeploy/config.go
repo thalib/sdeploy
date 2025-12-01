@@ -7,11 +7,27 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Default configuration values
-const (
-	DefaultListenPort = 8080
-	DefaultLogPath    = "/var/log/sdeploy.log"
-)
+// Defaults holds all default configuration values in a single struct
+// Access via: Defaults.Port, Defaults.LogPath, Defaults.RunAsUser, etc.
+var Defaults = struct {
+	Port       int
+	LogPath    string
+	RunAsUser  string
+	RunAsGroup string
+	GitBranch  string
+}{
+	Port:       8080,
+	LogPath:    "/var/log/sdeploy.log",
+	RunAsUser:  "www-data",
+	RunAsGroup: "www-data",
+	GitBranch:  "main",
+}
+
+// ConfigSearchPaths defines the search order for config files
+var ConfigSearchPaths = []string{
+	"/etc/sdeploy.conf",
+	"./sdeploy.conf",
+}
 
 // EmailConfig holds global email/SMTP configuration
 type EmailConfig struct {
@@ -35,8 +51,8 @@ type ProjectConfig struct {
 	GitUpdate       bool     `yaml:"git_update"`
 	TimeoutSeconds  int      `yaml:"timeout_seconds"`
 	EmailRecipients []string `yaml:"email_recipients"`
-	RunAsUser       string   `yaml:"run_as_user"`  // User to run commands as (default: www-data)
-	RunAsGroup      string   `yaml:"run_as_group"` // Group to run commands as (default: www-data)
+	RunAsUser       string   `yaml:"run_as_user"`  // User to run commands as (default: Defaults.RunAsUser)
+	RunAsGroup      string   `yaml:"run_as_group"` // Group to run commands as (default: Defaults.RunAsGroup)
 }
 
 // Config holds the complete SDeploy configuration
@@ -61,7 +77,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	// Set default listen port if not specified in config
 	if cfg.ListenPort == 0 {
-		cfg.ListenPort = DefaultListenPort
+		cfg.ListenPort = Defaults.Port
 	}
 
 	// Validate the configuration
@@ -72,12 +88,12 @@ func LoadConfig(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// GetEffectiveLogPath returns the log file path from config, or DefaultLogPath if not set
+// GetEffectiveLogPath returns the log file path from config, or Defaults.LogPath if not set
 func GetEffectiveLogPath(cfg *Config) string {
 	if cfg.LogFilepath != "" {
 		return cfg.LogFilepath
 	}
-	return DefaultLogPath
+	return Defaults.LogPath
 }
 
 // validateConfig performs validation checks on the configuration
@@ -108,9 +124,9 @@ func validateConfig(cfg *Config) error {
 		}
 		webhookPaths[project.WebhookPath] = true
 
-		// Default git_branch to "main" if not set
+		// Default git_branch to Defaults.GitBranch if not set
 		if project.GitBranch == "" {
-			project.GitBranch = "main"
+			project.GitBranch = Defaults.GitBranch
 		}
 	}
 
@@ -119,8 +135,7 @@ func validateConfig(cfg *Config) error {
 
 // FindConfigFile finds a config file based on the search order:
 // 1. Explicit path from -c flag
-// 2. /etc/sdeploy.conf
-// 3. ./sdeploy.conf
+// 2. Paths in ConfigSearchPaths (e.g., /etc/sdeploy.conf, ./sdeploy.conf)
 func FindConfigFile(explicitPath string) string {
 	// If explicit path is provided, use it
 	if explicitPath != "" {
@@ -131,12 +146,7 @@ func FindConfigFile(explicitPath string) string {
 	}
 
 	// Search order for config file
-	searchPaths := []string{
-		"/etc/sdeploy.conf",
-		"./sdeploy.conf",
-	}
-
-	for _, path := range searchPaths {
+	for _, path := range ConfigSearchPaths {
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}

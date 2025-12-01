@@ -191,15 +191,15 @@ func (d *Deployer) logBuildConfig(project *ProjectConfig) {
 }
 
 // getEffectiveRunAs returns the effective run_as_user and run_as_group for a project
-// If not configured in the project, defaults to www-data:www-data
+// If not configured in the project, defaults to Defaults.RunAsUser:Defaults.RunAsGroup
 func getEffectiveRunAs(project *ProjectConfig) (string, string) {
 	runAsUser := project.RunAsUser
 	if runAsUser == "" {
-		runAsUser = "www-data"
+		runAsUser = Defaults.RunAsUser
 	}
 	runAsGroup := project.RunAsGroup
 	if runAsGroup == "" {
-		runAsGroup = "www-data"
+		runAsGroup = Defaults.RunAsGroup
 	}
 	return runAsUser, runAsGroup
 }
@@ -283,11 +283,11 @@ func (d *Deployer) gitClone(ctx context.Context, projectName, repoURL, localPath
 	setProcessGroup(cmd)
 
 	output, err := cmd.CombinedOutput()
-	
+
 	if d.logger != nil && len(output) > 0 {
 		d.logger.Infof(projectName, "Output: %s", strings.TrimSpace(string(output)))
 	}
-	
+
 	if err != nil {
 		return fmt.Errorf("%v: %s", err, string(output))
 	}
@@ -315,11 +315,11 @@ func (d *Deployer) gitPull(ctx context.Context, project *ProjectConfig, runAsUse
 	cmd.Dir = project.LocalPath
 
 	output, err := cmd.CombinedOutput()
-	
+
 	if d.logger != nil && len(output) > 0 {
 		d.logger.Infof(project.Name, "Output: %s", strings.TrimSpace(string(output)))
 	}
-	
+
 	if err != nil {
 		return fmt.Errorf("%v: %s", err, string(output))
 	}

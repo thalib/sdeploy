@@ -22,6 +22,53 @@ All Go source code in SDeploy MUST be developed using test-driven development (T
 - PRs and code reviews must reject changes that lack appropriate tests.
 - All contributors must follow TDD for every code change.
 
+## 🔧 Centralized Default Values
+
+All hardcoded fallback defaults must be centralized in `cmd/sdeploy/config.go`. This ensures maintainability and consistency across the codebase.
+
+### Current Centralized Defaults
+
+```go
+// Defaults holds all default configuration values in a single struct
+// Access via: Defaults.Port, Defaults.LogPath, Defaults.RunAsUser, etc.
+var Defaults = struct {
+	Port       int
+	LogPath    string
+	RunAsUser  string
+	RunAsGroup string
+	GitBranch  string
+}{
+	Port:       8080,
+	LogPath:    "/var/log/sdeploy.log",
+	RunAsUser:  "www-data",
+	RunAsGroup: "www-data",
+	GitBranch:  "main",
+}
+
+// ConfigSearchPaths defines the search order for config files
+var ConfigSearchPaths = []string{
+	"/etc/sdeploy.conf",
+	"./sdeploy.conf",
+}
+```
+
+### Developer Workflow for Default Values
+
+1. **Always define defaults in the `Defaults` struct**: Never use hardcoded string literals for default values directly in business logic.
+2. **Reference via `Defaults.X`**: All code and tests should access defaults via `Defaults.Port`, `Defaults.RunAsUser`, etc.
+3. **Naming convention**: Use clear, concise field names (e.g., `Port`, `LogPath`, `RunAsUser`).
+4. **Update tests**: Tests should use `Defaults.X` instead of hardcoded values to ensure they stay in sync.
+5. **Document in SPEC.md**: When adding new defaults, update the struct definition above.
+
+### Adding New Default Values
+
+When introducing a new default value:
+
+1. Add a new field to the `Defaults` struct in `config.go`
+2. Update all usages in the codebase to reference `Defaults.NewField`
+3. Update corresponding test files to use `Defaults.NewField`
+4. Update this section of SPEC.md
+
 ## 🚀 Overview and Goal
 
 SDeploy provides a dedicated service that listens for external webhook notifications (e.g., GitHub, GitLab, CI/CD) and triggers a local deployment script.

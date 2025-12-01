@@ -8,13 +8,15 @@ This document outlines the features and requirements for SDeploy, a lightweight,
 All Go source code in SDeploy MUST be developed using test-driven development (TDD):
 
 - Every new feature, bugfix, or refactor must be accompanied by one or more unit tests before implementation.
-- All major logic modules (webhook, deploy, config, email, logging) require corresponding `*_test.go` files.
+- All major logic modules require corresponding `*_test.go` files.
 - Tests must cover:
   - Webhook validation and routing
   - Deployment locking and execution
   - Config loading and error handling
   - Email notification logic
   - Logging output and error capture
+  - Hot reload functionality
+  - Pre-flight directory checks
 - CI/CD or local workflows must run `go test ./cmd/sdeploy/...` and all tests must pass before merging or release.
 - No code is considered complete or production-ready without passing tests.
 
@@ -24,29 +26,21 @@ All Go source code in SDeploy MUST be developed using test-driven development (T
 
 ## 🔧 Centralized Default Values
 
-All hardcoded fallback defaults must be centralized in `cmd/sdeploy/config.go`. This ensures maintainability and consistency across the codebase.
+All hardcoded fallback defaults must be centralized in [`cmd/sdeploy/config.go`](cmd/sdeploy/config.go). This ensures maintainability and consistency across the codebase.
 
 ### Current Centralized Defaults
 
-```go
-// Defaults holds all default configuration values in a single struct
-// Access via: Defaults.Port, Defaults.LogPath, etc.
-var Defaults = struct {
-	Port      int
-	LogPath   string
-	GitBranch string
-}{
-	Port:      8080,
-	LogPath:   "/var/log/sdeploy.log",
-	GitBranch: "main",
-}
+> **Source:** See `Defaults` struct in [`cmd/sdeploy/config.go`](cmd/sdeploy/config.go)
 
-// ConfigSearchPaths defines the search order for config files
-var ConfigSearchPaths = []string{
-	"/etc/sdeploy.conf",
-	"./sdeploy.conf",
-}
-```
+| Field       | Default Value            | Description                    |
+|-------------|--------------------------|--------------------------------|
+| `Port`      | `8080`                   | HTTP listener port             |
+| `LogPath`   | `/var/log/sdeploy.log`   | Log file path in daemon mode   |
+| `GitBranch` | `"main"`                 | Default git branch             |
+
+Config file search order is defined in `ConfigSearchPaths`:
+1. `/etc/sdeploy.conf`
+2. `./sdeploy.conf`
 
 ### Developer Workflow for Default Values
 
@@ -54,16 +48,6 @@ var ConfigSearchPaths = []string{
 2. **Reference via `Defaults.X`**: All code and tests should access defaults via `Defaults.Port`, `Defaults.GitBranch`, etc.
 3. **Naming convention**: Use clear, concise field names (e.g., `Port`, `LogPath`, `GitBranch`).
 4. **Update tests**: Tests should use `Defaults.X` instead of hardcoded values to ensure they stay in sync.
-5. **Document in SPEC.md**: When adding new defaults, update the struct definition above.
-
-### Adding New Default Values
-
-When introducing a new default value:
-
-1. Add a new field to the `Defaults` struct in `config.go`
-2. Update all usages in the codebase to reference `Defaults.NewField`
-3. Update corresponding test files to use `Defaults.NewField`
-4. Update this section of SPEC.md
 
 ## 🚀 Overview and Goal
 
@@ -75,288 +59,206 @@ Only one deployment process runs at a time for any given project. New webhook re
 
 ## 🏃 Installation and Usage
 
-The compiled binary is named `sdeploy`.
+> **Full installation instructions:** See [`INSTALL.md`](INSTALL.md)
+
+### Quick Start
+
+```sh
+# Build
+go build -o sdeploy ./cmd/sdeploy
+
+# Console mode (foreground)
+./sdeploy -c /path/to/sdeploy.conf
+
+# Daemon mode (background service)
+./sdeploy -c /path/to/sdeploy.conf -d
+```
 
 ### Execution Modes
 
 | Mode         | Command           | Description                                                                 |
 |--------------|-------------------|-----------------------------------------------------------------------------|
 | Console      | `./sdeploy`       | Foreground, blocking. Output to stdout/stderr. Used for testing/setup.      |
-| Daemon       | `./sdeploy -d`    | Background service. Output to console/logger. For use with system services. |
+| Daemon       | `./sdeploy -d`    | Background service. Output to log file. For use with system services.       |
 
-Custom config file path: `./sdeploy -c /home/user/my_project/sdeploy.conf -d`
+### Running as a Service
 
-## Project Folder Structure
+> **systemd service files:** See [`samples/sdeploy.service`](samples/sdeploy.service)
 
-```bash
+## 📁 Project Folder Structure
+
+```
 sdeploy/
-└── cmd/
-    └── sdeploy/
-        ├── main.go
-        ├── webhook.go
-        ├── deploy.go
-        ├── config.go
-        ├── email.go
-        ├── logging.go
-        ├── webhook_test.go
-        ├── deploy_test.go
-        ├── config_test.go
-        ├── email_test.go
-        ├── logging_test.go
+├── cmd/
+│   └── sdeploy/
+│       ├── main.go              # Entry point and CLI flags
+│       ├── config.go            # Configuration loading and validation
+│       ├── webhook.go           # HTTP webhook handler
+│       ├── deploy.go            # Deployment execution logic
+│       ├── preflight.go         # Pre-flight directory checks
+│       ├── email.go             # Email notification logic
+│       ├── logging.go           # Logging infrastructure
+│       ├── hotreload.go         # Hot reload functionality
+│       ├── signal.go            # Signal handling
+│       ├── deploy_platform.go   # Platform-specific deployment (Unix)
+│       ├── logging_platform.go  # Platform-specific logging (Unix)
+│       └── *_test.go            # Test files for each module
+├── samples/
+│   ├── sdeploy.conf             # Minimal configuration example
+│   ├── sdeploy-full.conf        # Full configuration reference
+│   └── sdeploy.service          # systemd service file
+├── SPEC.md                      # This specification document
+├── INSTALL.md                   # Installation instructions
+├── README.md                    # Quick start guide
+└── go.mod                       # Go module definition
 ```
 
-### Running SDeploy as a Service (Production)
+## ⚙️ Configuration
 
-#### 1. Using systemd (Linux)
+SDeploy uses YAML format for configuration.
 
-Create `/etc/systemd/system/sdeploy.service`:
+### Configuration Files
 
-```ini
-[Unit]
-Description=SDeploy Webhook Daemon
-After=network.target
+| File | Description |
+|------|-------------|
+| [`samples/sdeploy.conf`](samples/sdeploy.conf) | Minimal quick-start example |
+| [`samples/sdeploy-full.conf`](samples/sdeploy-full.conf) | Full reference with all fields and comments |
 
-[Service]
-Type=simple
-User=sdeploy_user  # Dedicated, non-root user
-WorkingDirectory=/usr/local/bin/
-ExecStart=/usr/local/bin/sdeploy -d
-Restart=always
-RestartSec=5s
+### Config File Search Order
 
-[Install]
-WantedBy=multi-user.target
-```
-
-Commands:
-```sh
-sudo useradd -r sdeploy_user
-sudo systemctl daemon-reload
-sudo systemctl enable sdeploy
-sudo systemctl start sdeploy
-sudo systemctl status sdeploy
-```
-
-#### 2. Using nohup
-
-```sh
-nohup /path/to/sdeploy -d > sdeploy.log 2>&1 &
-```
-
-## ⚙️ Configuration (`sdeploy.conf`)
-
-SDeploy uses YAML format for configuration. It searches for config file in order:
-1. Path from `-c` flag
+1. Path from `-c` flag (explicit)
 2. `/etc/sdeploy.conf`
 3. `./sdeploy.conf`
 
-### Sample Configuration Files
+### Global Configuration
 
-- **[samples/sdeploy.conf](samples/sdeploy.conf)** — Minimal quick-start example
-- **[samples/sdeploy-full.conf](samples/sdeploy-full.conf)** — Full reference with all fields and comments
+| Key            | Type   | Default                  | Description                          |
+|----------------|--------|--------------------------|--------------------------------------|
+| `listen_port`  | int    | `8080`                   | HTTP port for webhook listener       |
+| `log_filepath` | string | `/var/log/sdeploy.log`   | Log file path (daemon mode)          |
+| `email_config` | object | —                        | SMTP configuration (see below)       |
+| `projects`     | array  | —                        | List of project configurations       |
 
-### Sample Example
+### Email Configuration (`email_config`)
 
-```yaml
-listen_port: 8080
+| Key            | Type   | Required | Description                    |
+|----------------|--------|----------|--------------------------------|
+| `smtp_host`    | string | Yes      | SMTP server address            |
+| `smtp_port`    | int    | Yes      | SMTP server port (587 for TLS) |
+| `smtp_user`    | string | Yes      | SMTP authentication username   |
+| `smtp_pass`    | string | Yes      | SMTP password or API key       |
+| `email_sender` | string | Yes      | Sender email address           |
 
-email_config:
-  smtp_host: smtp.sendgrid.net
-  smtp_port: 587
-  smtp_user: apikey
-  smtp_pass: SG.xxxxxxxxxxxx
-  email_sender: sdeploy@yourdomain.com
-
-projects:
-  - name: User-Facing Frontend
-    webhook_path: /hooks/frontend
-    webhook_secret: secret_token_for_frontend_repo
-    git_repo: git@github.com:myorg/frontend-app.git
-    local_path: /var/repo/frontend-repo
-    execute_path: /var/www/site
-    git_branch: main
-    execute_command: sh /var/www/site/deploy.sh
-    git_update: true
-    email_recipients:
-      - frontend-team@domain.com
-      - on-call@domain.com
-
-  - name: Backend REST API
-    webhook_path: /hooks/api-service
-    webhook_secret: api_prod_key_777
-    git_repo: https://gitlab.com/api/backend-service.git
-    local_path: /opt/repo/api-repo
-    execute_path: /opt/services/api
-    git_branch: staging
-    execute_command: /usr/bin/supervisorctl restart api-service
-    git_update: false
-    email_recipients:
-      - api-team@domain.com
-```
-
-### Global Email Configuration
-
-| Key          | Description                                 |
-|--------------|---------------------------------------------|
-| smtp_host    | SMTP server address                         |
-| smtp_port    | SMTP server port (e.g., 587 for TLS)        |
-| smtp_user    | Username for SMTP authentication            |
-| smtp_pass    | Password or API key for SMTP                |
-| email_sender | Sender email address                        |
-
-**Email Notification Behavior:**
-- If `email_config` is absent or any required field (`smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `email_sender`) is missing/invalid, email notifications are **globally disabled**.
-- When disabled, a log message is recorded: `"Email notification disabled: email_config is missing or invalid."`
-- Per-project: If `email_recipients` is absent or empty for a project, email notifications are **disabled for that project only**.
+**Behavior:**
+- If `email_config` is absent or any required field is missing, email notifications are **globally disabled**.
+- Per-project: If `email_recipients` is empty, email notifications are disabled for that project only.
 
 ### Project Configuration
 
-| Key               | Description                                               |
-|-------------------|----------------------------------------------------------|
-| name              | Human-readable project identifier                         |
-| webhook_path      | Unique URI path (e.g., /hooks/api)                       |
-| webhook_secret    | Secret key for webhook authentication                     |
-| git_repo          | (Optional) Git repository URL (SSH/HTTPS). If absent or empty, no git clone/pull is performed. |
-| local_path        | Local directory for git operations or local project path  |
-| execute_path      | Directory for deployment script execution                 |
-| git_branch        | (Optional) Branch required to trigger deployment. Default: `main` |
-| execute_command   | Shell command to execute                                  |
-| git_update        | (Optional) If true, run `git pull` before deployment. Default: `false` |
-| timeout_seconds   | (Optional) Hard timeout for command execution             |
-| email_recipients  | (Optional) Array of notification email addresses. If absent or empty, email notifications are disabled for this project. |
+| Key               | Type     | Required | Default      | Description                                    |
+|-------------------|----------|----------|--------------|------------------------------------------------|
+| `name`            | string   | No       | —            | Human-readable project identifier              |
+| `webhook_path`    | string   | Yes      | —            | Unique URI path (e.g., `/hooks/api`)           |
+| `webhook_secret`  | string   | Yes      | —            | Secret key for webhook authentication          |
+| `git_repo`        | string   | No       | —            | Git repository URL (SSH/HTTPS)                 |
+| `local_path`      | string   | No       | —            | Local directory for git operations             |
+| `execute_path`    | string   | No       | `local_path` | Working directory for command execution        |
+| `git_branch`      | string   | No       | `"main"`     | Branch required to trigger deployment          |
+| `execute_command` | string   | Yes      | —            | Shell command to execute                       |
+| `git_update`      | bool     | No       | `false`      | Run `git pull` before deployment               |
+| `timeout_seconds` | int      | No       | `0`          | Command timeout (0 = no timeout)               |
+| `email_recipients`| []string | No       | —            | Notification email addresses                   |
 
-**Git Behavior:**
-- `git_branch`: If not set, defaults to `main`.
-- `git_update`: If not set, defaults to `false` (no automatic `git pull`).
-- `git_repo`: If absent or empty, **no git clone or pull is performed**. The `local_path` is treated as a local directory (either an existing local repo or a non-git directory) and only the build/execute commands are run.
-- **Clone Logic:** If `git_repo` is set and the repo is not already cloned at `local_path`, it will be cloned. If already cloned, skip cloning.
+### Git Behavior
+
+- If `git_repo` is **not set**: No git operations are performed. `local_path` is treated as a local directory.
+- If `git_repo` is **set** and repo not cloned: Clone the repository.
+- If `git_repo` is **set** and repo exists: Skip cloning.
+- If `git_update` is `true`: Run `git pull` before deployment.
 
 ## 🛠️ Key Features
 
-- **Webhook Listener:** Configurable port (default: 8080) for HTTP POST requests.
-- **Flexible Routing:** Routes requests by URI path to the correct project.
-- **Authentication (HMAC & Secret Fallback):** Prioritize HMAC signature (`X-Hub-Signature`). If missing, fallback to secret in URL query.
-- **Branch Verification:** Ensures webhook payload branch matches configured branch.
-- **Asynchronous Deployment:** Valid requests trigger deployment in background, respond `202 Accepted`.
-- **Pre-flight Directory Checks:** Automatically verifies and creates deployment directories with correct ownership and permissions before each deployment.
-- **Git Update Control:** If `git_update` is true, run `git pull` before deployment (default: `false`).
-- **Git Clone Control:** If `git_repo` is set and repo not already cloned, clone it. If already cloned, skip cloning.
-- **Local Directory Support:** If `git_repo` is absent/empty, treat `local_path` as a local directory and skip all git operations.
-- **Robust Execution:** Runs shell command in specified directory.
-- **Environment Variable Injection:** Injects project details (e.g., `SDEPLOY_PROJECT_NAME`, `SDEPLOY_TRIGGER_SOURCE`) into deployment environment.
-- **Comprehensive Logging:** Logs start/end time, output, status, to stdout/stderr or log file.
-- **Startup Logging:** On daemon start, print all global settings and project configurations to the log file.
-- **Per-Build Logging:** For each build/deployment, print the project configuration in the log.
-- **Email Notification:** On completion, sends summary email if configured (disabled if `email_config` is missing/invalid or `email_recipients` is empty).
-- **Hot Reload:** Configuration file changes are automatically detected and applied without restarting the daemon.
+| Feature                     | Description                                                              |
+|-----------------------------|--------------------------------------------------------------------------|
+| Webhook Listener            | Configurable port (default: 8080) for HTTP POST requests                 |
+| Flexible Routing            | Routes requests by URI path to the correct project                       |
+| HMAC Authentication         | Validates `X-Hub-Signature` header or fallback to `?secret=` query param |
+| Branch Verification         | Ensures webhook payload branch matches configured branch                 |
+| Asynchronous Deployment     | Valid requests trigger deployment in background, respond `202 Accepted`  |
+| Pre-flight Directory Checks | Automatically creates directories with 0755 permissions                  |
+| Git Operations              | Clone and pull support with configurable branch                          |
+| Environment Variables       | Injects `SDEPLOY_PROJECT_NAME`, `SDEPLOY_TRIGGER_SOURCE`, etc.           |
+| Comprehensive Logging       | Logs to stdout/stderr (console) or file (daemon mode)                    |
+| Email Notifications         | Sends deployment summary emails when configured                          |
+| Hot Reload                  | Configuration changes auto-detected and applied without restart          |
 
 ## 🔍 Pre-flight Directory Checks
 
-SDeploy performs automated pre-flight checks before each deployment to ensure directories are properly set up.
+SDeploy performs automated pre-flight checks before each deployment.
 
-### Pre-flight Check Behavior
-
-| Aspect                | Behavior                                                                 |
-|-----------------------|--------------------------------------------------------------------------|
-| Directory Existence   | Checks if `local_path` and `execute_path` directories exist              |
-| Auto-Creation         | Missing directories are automatically created with 0755 permissions      |
-| Path Defaults         | If `execute_path` is not set, it defaults to `local_path`                |
-| Logging               | All directory creation actions are logged                                |
-
-### Pre-flight Check Flow
-
-1. **Validate local_path:** Check if exists, create if missing
-2. **Validate execute_path:** Check if exists (defaults to local_path if not set), create if missing
-3. **Log Actions:** All actions are logged for transparency
+| Aspect              | Behavior                                                    |
+|---------------------|-------------------------------------------------------------|
+| Directory Existence | Checks if `local_path` and `execute_path` directories exist |
+| Auto-Creation       | Missing directories are created with 0755 permissions       |
+| Path Defaults       | `execute_path` defaults to `local_path` if not set          |
+| Logging             | All directory creation actions are logged                   |
 
 ### Error Handling
 
-| Error Type            | Handling                                                                 |
-|-----------------------|--------------------------------------------------------------------------|
-| Path is a file        | Deployment fails with clear error message                                |
-| Permission denied     | Deployment fails with clear error message                                |
+| Error Type        | Handling                               |
+|-------------------|----------------------------------------|
+| Path is a file    | Deployment fails with error message    |
+| Permission denied | Deployment fails with error message    |
 
 ## 🔄 Hot Reload
 
-SDeploy supports hot reloading of the configuration file. When the config file is modified, SDeploy automatically detects the change and applies the new configuration.
-
-### Hot Reload Behavior
-
-| Aspect                | Behavior                                                                 |
-|-----------------------|--------------------------------------------------------------------------|
-| Detection             | File system watcher monitors the config file for changes                 |
-| Validation            | New configuration is validated before applying; invalid configs are rejected |
-| Thread Safety         | Configuration reload is thread-safe using mutex protection               |
-| Build Deferral        | If a deployment is in progress, config reload is deferred until completion |
-| Logging               | All reload events (success, failure, deferral) are logged                |
+SDeploy supports hot reloading of the configuration file without daemon restart.
 
 ### What Can Be Hot-Reloaded
 
 - **Projects:** Add, remove, or modify project configurations
-- **Email Configuration:** Update SMTP settings and sender
-- **Log File Path:** Change log file location (takes effect for new log entries)
+- **Email Configuration:** Update SMTP settings
+- **Log File Path:** Change log file location
 
-### What Cannot Be Hot-Reloaded
+### What Requires Restart
 
-- **Listen Port:** Changing `listen_port` requires a daemon restart
-- **Active Deployments:** Ongoing deployments continue with the previous configuration
+- **Listen Port:** Changing `listen_port` requires daemon restart
+- **Active Deployments:** Continue with previous configuration
 
-### Hot Reload Error Handling
+### Hot Reload Behavior
 
-| Error Type            | Handling                                                                 |
-|-----------------------|--------------------------------------------------------------------------|
-| File Read Error       | Log error, keep current configuration                                    |
-| YAML Parse Error      | Log error with details, keep current configuration                       |
-| Validation Error      | Log error with details, keep current configuration                       |
-| File Watcher Error    | Log error, attempt to re-establish watcher                               |
-
-### Hot Reload Logging
-
-On successful reload:
-```
-[INFO] Configuration reloaded successfully
-```
-
-On reload error:
-```
-[ERROR] Failed to reload configuration: <error details>
-```
-
-On deferred reload (build in progress):
-```
-[INFO] Configuration change detected, reload already pending
-[INFO] Processing deferred configuration reload
-[INFO] Configuration reloaded successfully
-```
+| Aspect          | Behavior                                                      |
+|-----------------|---------------------------------------------------------------|
+| Detection       | File system watcher monitors the config file                  |
+| Validation      | New configuration validated before applying                   |
+| Thread Safety   | Configuration reload is thread-safe using mutex               |
+| Build Deferral  | If deployment in progress, reload deferred until completion   |
 
 ## 🛡️ Operational Principles
 
-| Principle           | Detail                                                                 |
-|---------------------|------------------------------------------------------------------------|
-| Technology          | MUST be implemented in Go for performance/resource efficiency           |
-| Security            | Each project uses its own webhook_secret for authentication             |
-| Robustness          | Command errors are caught, logged, and do not crash the daemon          |
-| Concurrency Control | Single-instance execution enforced per project using locks              |
+| Principle           | Detail                                                       |
+|---------------------|--------------------------------------------------------------|
+| Technology          | Implemented in Go for performance and resource efficiency    |
+| Security            | Each project uses its own `webhook_secret` for authentication|
+| Robustness          | Command errors are caught, logged, and do not crash daemon   |
+| Concurrency Control | Single-instance execution enforced per project using locks   |
 
 ## 📐 Execution Flow
 
-1. **Daemon Startup:** Log all global settings and project configurations to the log file.
+1. **Daemon Startup:** Log all global settings and project configurations.
 2. **Request Entry:** Webhook POST received.
-3. **Validation (Security):** Check HMAC signature. If valid, trigger is WEBHOOK. If absent, check secret query parameter for INTERNAL trigger.
-4. **Validation (Logic):** Verify git branch (for WEBHOOK). Use `git_branch` from config, or default to `main` if not set.
-5. **Lock Check:** If deployment lock held, log "Skipped" and return 202. If not, acquire lock and proceed.
-6. **Asynchronous Trigger:** Start deployment in background, return 202.
-7. **Log Project Config:** Print the project configuration in the log for this build.
-8. **Pre-flight Checks:**
-   - Verify `local_path` exists, create if missing with 0755 permissions.
-   - Verify `execute_path` exists (defaults to `local_path` if not set), create if missing.
-9. **Pre-Execution (Git Operations):**
-   - If `git_repo` is absent or empty: Skip all git operations. Treat `local_path` as a local directory (existing repo or non-git directory).
-   - If `git_repo` is set and repo not cloned at `local_path`: Clone the repo.
-   - If `git_repo` is set and repo already cloned: Skip cloning.
-   - If `git_update` is `true` (default: `false`): Run `git pull`.
+3. **Validation (Security):** Check HMAC signature (`X-Hub-Signature`). If missing, check `?secret=` query parameter.
+4. **Validation (Logic):** Verify git branch matches configured branch.
+5. **Lock Check:** If deployment lock held, log "Skipped" and return `202`. Otherwise, acquire lock.
+6. **Asynchronous Trigger:** Start deployment in background, return `202 Accepted`.
+7. **Log Project Config:** Print project configuration for this build.
+8. **Pre-flight Checks:** Verify/create `local_path` and `execute_path` directories.
+9. **Git Operations:**
+   - If `git_repo` not set: Skip git operations.
+   - If repo not cloned: Clone repository.
+   - If `git_update` is true: Run `git pull`.
 10. **Execution:** Run `execute_command` in `execute_path` (with timeout, env vars).
-11. **Cleanup & Notify:** Log result, send email notification (if `email_config` valid and `email_recipients` not empty), release lock.
+11. **Cleanup:** Log result, send email notification (if configured), release lock.
 
 ## 🌐 Integration with Reverse Proxies
 
@@ -369,9 +271,6 @@ server {
     listen 443 ssl;
     server_name yourdomain.com;
 
-    # ssl_certificate /etc/ssl/certs/yourdomain.crt;
-    # ssl_certificate_key /etc/ssl/private/yourdomain.key;
-
     location /hooks/ {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
@@ -379,7 +278,6 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_buffering off;
-        proxy_request_buffering off;
         if ($request_method !~ ^(POST)$) {
             return 405;
         }
@@ -395,23 +293,18 @@ yourdomain.com {
         reverse_proxy 127.0.0.1:8080 {
             flush_interval -1
         }
-        @notPost {
-            method not POST
-        }
-        respond @notPost 405
     }
 }
 ```
 
-## 🌐 Integration with Cron (Scheduled Deployments)
+## 🕐 Integration with Cron (Scheduled Deployments)
 
-Scheduled deployments are triggered by external job schedulers (e.g., cron) sending an internal trigger request using the secret query parameter.
+Trigger deployments on a schedule using the secret query parameter:
 
-### Cron Job Example
-
-```cron
-0 3 * * * curl -X POST "http://localhost:8080/hooks/frontend?secret=secret_token_for_frontend_repo" -d "{}" -H "Content-Type: application/json" >/dev/null 2>&1
+```sh
+# Cron job example: deploy at 3 AM daily
+0 3 * * * curl -X POST "http://localhost:8080/hooks/frontend?secret=your_secret" -d '{"ref":"refs/heads/main"}'
 ```
 
-SDeploy recognizes the missing HMAC, validates the secret, classifies as INTERNAL, and proceeds with deployment.
+SDeploy recognizes the missing HMAC signature, validates the secret query parameter, classifies as INTERNAL trigger, and proceeds with deployment.
 

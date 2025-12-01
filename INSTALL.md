@@ -41,40 +41,39 @@ docker run --rm -v "$(pwd):/app" -w /app golang:latest \
 
 ## Install as systemd Service
 
-1. Copy binary:
+### Copy binary:
 
 ```sh
+# Stop service if already running
+sudo systemctl stop sdeploy
+
 sudo cp sdeploy /usr/local/bin/
 
 # Create directory for deployments
 sudo mkdir -pv /opt/sdeploy
-
 ```
 
-2. Create config:
+### Create config:
 
 ```sh
 # Quick start (minimal config)
 sudo cp samples/sdeploy.conf /etc/sdeploy.conf
-
-# Or use the full reference config
-sudo cp samples/sdeploy-full.conf /etc/sdeploy.conf
-
 sudo cp samples/sdeploy.service /etc/systemd/system/sdeploy.service
 ```
 
-3. systemctl Service:
+### systemctl Service:
 
 ```sh
 # Register and Enable Service
 sudo systemctl daemon-reload
 sudo systemctl enable sdeploy
 ```
+
 ```sh
-# Start/stop service
+## Start the service
 sudo systemctl start sdeploy
-sudo systemctl stop sdeploy
 ```
+
 ```sh
 # Check status
 sudo systemctl status sdeploy

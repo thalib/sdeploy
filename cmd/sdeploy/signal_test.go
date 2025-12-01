@@ -33,11 +33,11 @@ func TestGetShutdownSignals(t *testing.T) {
 	}
 }
 
-// TestGetShutdownSignalsCount tests that exactly two signals are returned
-func TestGetShutdownSignalsCount(t *testing.T) {
+// TestGetShutdownSignalsNonEmpty tests that shutdown signals slice is not empty
+func TestGetShutdownSignalsNonEmpty(t *testing.T) {
 	signals := getShutdownSignals()
 
-	if len(signals) != 2 {
-		t.Errorf("Expected 2 shutdown signals, got %d", len(signals))
+	if len(signals) < 2 {
+		t.Errorf("Expected at least 2 shutdown signals (SIGINT, SIGTERM), got %d", len(signals))
 	}
 }

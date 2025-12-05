@@ -144,6 +144,8 @@ curl -X POST "http://localhost:8080/hooks/myproject?secret=your_secret" \
   -d '{"ref":"refs/heads/main"}'
 ```
 
+**Refrence :** https://docs.github.com/en/webhooks/webhook-events-and-payloads#push
+
 ## Pre-flight Directory Checks
 
 SDeploy automatically handles directory setup before each deployment:

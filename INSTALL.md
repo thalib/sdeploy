@@ -127,9 +127,13 @@ curl -X POST "http://localhost:8080/hooks/sdeploy-test?secret=your_webhook_secre
 
 **Via webhook (HMAC signature):**
 
-```sh
+```bash
+## To create HMAC signatruce
+echo -n '{"ref":"refs/heads/main"}' | openssl dgst -sha256 -hmac "your_webhook_secret_here"
+# Output: (stdin)= 4ff441efda243ce9ea45c937bb4021c2d46cfd8f...
+
 curl -X POST http://localhost:8080/hooks/myproject \
-  -H "X-Hub-Signature: sha1=..." \
+  -H "X-Hub-Signature-256: sha256=4ff441efda243ce9ea45c937bb4021c2d46cfd8f" \
   -d '{"ref":"refs/heads/main"}'
 ```
 
